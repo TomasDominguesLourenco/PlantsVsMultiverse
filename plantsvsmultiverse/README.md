@@ -42,15 +42,15 @@ mvn exec:java
 
 ## Controlos
 
-- `Q`: plantar na linha 1
-- `W`: plantar na linha 2
-- `E`: plantar na linha 3
-- `R`: plantar na linha 4
-- `T`: plantar na linha 5
+- **Rato**: clique numa célula da grelha para plantar; clique no sol para o apanhar (+25)
+- `ENTER`: começar o jogo / jogar outra vez
+- `M`: voltar ao menu (depois do fim do jogo)
 - `C`: adicionar 25 de energia (tecla de teste)
 
-Cada planta custa 50 de energia. A energia aumenta automaticamente ao longo do jogo.
-Os zombies aparecem periodicamente, avançam para a esquerda e precisam de três impactos para serem derrotados.
+O jogo arranca sempre em ecrã inteiro (`Alt+F4` para sair).
+
+Cada planta custa 50 de energia. O sol cai do céu periodicamente e tem de ser apanhado com o clique antes de desaparecer.
+Os zombies avançam para a esquerda, param à frente das plantas e comem-nas. A dificuldade aumenta com o tempo (spawn mais frequente, zombies mais rápidos e com mais vida).
 
 ## Ficheiros
 
