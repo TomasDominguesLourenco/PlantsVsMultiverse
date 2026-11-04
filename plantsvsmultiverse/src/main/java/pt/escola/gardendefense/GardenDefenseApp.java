@@ -322,21 +322,10 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private void drawLawn() {
-        for (int row = 0; row < ROWS; row++) {
-            for (int col = 0; col < COLS; col++) {
-                double x = GRID_X + col * CELL_W;
-                double y = GRID_Y + row * CELL_H;
-
-                Color grass = (row + col) % 2 == 0
-                        ? Color.rgb(105, 190, 75)
-                        : Color.rgb(90, 175, 65);
-
-                entityBuilder()
-                        .at(x, y)
-                        .view(new Rectangle(CELL_W - 2, CELL_H - 2, grass))
-                        .buildAndAttach();
-            }
-        }
+        entityBuilder()
+                .view(new LawnView(GRID_X, GRID_Y, CELL_W, CELL_H, ROWS, COLS))
+                .zIndex(-100)
+                .buildAndAttach();
     }
 
     private void clearWorld() {
@@ -361,11 +350,19 @@ public class GardenDefenseApp extends GameApplication {
 
         Entity plant = entityBuilder()
                 .at(x, y)
+                .view(groundShadow(PLANT_W, PLANT_H))
                 .view(texture("PeaShooter.png", PLANT_W, PLANT_H))
                 .buildAndAttach();
 
         plantGrid[row][col] = new Plant(plant, row, col);
         hasPlant[row][col] = true;
+    }
+
+    private javafx.scene.shape.Ellipse groundShadow(double width, double height) {
+        var shadow = new javafx.scene.shape.Ellipse(width / 2 + 5, height - 3, width * 0.48, 7);
+        shadow.setFill(Color.rgb(34, 49, 24, 0.24));
+        shadow.setMouseTransparent(true);
+        return shadow;
     }
 
     @Override
