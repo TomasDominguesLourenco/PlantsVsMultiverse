@@ -4,7 +4,7 @@ Protótipo Java inspirado em jogos de defesa de jardim, feito com FXGL.
 
 ## Requisitos
 
-- JDK 21
+- JDK 25 (LTS)
 - Maven
 - VS Code com as extensões **Extension Pack for Java** e **Maven for Java**
 
@@ -12,7 +12,7 @@ Protótipo Java inspirado em jogos de defesa de jardim, feito com FXGL.
 
 ```bash
 sudo apt update
-sudo apt install openjdk-21-jdk maven
+sudo apt install openjdk-25-jdk maven
 ```
 
 Confirma as instalações:
