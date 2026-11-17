@@ -26,8 +26,20 @@ final class LawnView extends Canvas {
                 new Stop(0, Color.web("#87cbd3")), new Stop(1, Color.web("#dce8b1"))));
         g.fillRect(0, 0, 1000, 600);
         cloud(310, 33, 1.0); cloud(699, 18, 0.8); cloud(894, 53, 0.6);
-        shape("#9bb96d", 0, 130, 85, 75, 168, 126, 292, 66, 425, 134, 582, 86, 760, 132, 911, 66, 1000, 110, 1000, 240, 0, 240);
-        shape("#6c9453", 0, 155, 140, 115, 245, 160, 417, 112, 534, 160, 720, 115, 870, 161, 1000, 122, 1000, 260, 0, 260);
+        g.setFill(Color.web("#9bb96d"));
+        g.beginPath(); g.moveTo(0, 133);
+        g.bezierCurveTo(82, 65, 140, 86, 212, 118);
+        g.bezierCurveTo(335, 47, 413, 99, 507, 128);
+        g.bezierCurveTo(641, 72, 713, 103, 775, 128);
+        g.bezierCurveTo(893, 50, 947, 78, 1000, 102);
+        g.lineTo(1000, 240); g.lineTo(0, 240); g.closePath(); g.fill();
+        g.setFill(Color.web("#6c9453"));
+        g.beginPath(); g.moveTo(0, 160);
+        g.bezierCurveTo(117, 102, 162, 111, 264, 159);
+        g.bezierCurveTo(396, 96, 462, 126, 556, 160);
+        g.bezierCurveTo(724, 101, 811, 137, 864, 156);
+        g.bezierCurveTo(938, 112, 973, 117, 1000, 127);
+        g.lineTo(1000, 260); g.lineTo(0, 260); g.closePath(); g.fill();
     }
 
     private void drawPlayingGarden() {
@@ -70,6 +82,7 @@ final class LawnView extends Canvas {
                 }
             }
         }
+        groundQuad(100, 100, 116, 100, 113, 550, 100, 550, "#355b322b");
         groundLine(100, 100, 910, 100, "#afd46e", 3);
         groundLine(100, 550, 910, 550, "#456d30", 3);
         for (int i = 0; i < 49; i++) {
@@ -104,33 +117,22 @@ final class LawnView extends Canvas {
 
     private void house(boolean menu) {
         if (menu) {
-            outlined("#e6d4a5", "#635338", 3, -32, 160, 133, 113, 258, 184, 253, 406, -32, 463);
-            shape("#b4b983", 133, 113, 258, 184, 253, 406, 125, 373);
-            outlined("#9b5940", "#594b35", 4, -44, 172, 100, 67, 286, 172, 254, 193, 103, 110, -28, 194);
-            for (int i = 0; i < 5; i++) line(-10 + i * 25, 149 - i * 15, 159 + i * 22, 174, "#bf8057", 2);
-            outlined("#796246", "#635338", 3, 34, 263, 99, 247, 99, 382, 34, 397);
-            shape("#b29865", 42, 272, 90, 260, 90, 376, 42, 389);
-            oval(79, 324, 5, 5, "#e6c25f");
-            window(155, 223, 56, 68);
-            shape("#a99f83", 27, 397, 105, 380, 153, 414, 55, 439);
-            line(54, 439, 153, 414, "#736e5a", 4);
+            g.setFill(Color.web("#35472625"));
+            g.fillOval(-27, 407, 289, 37);
+            g.drawImage(GardenAssets.HOUSE, -95, 180, 385, 257);
         } else {
-            outlined("#dccda2", "#6a593c", 2, -28, 86, 105, 66, 157, 113, 83, 546, -28, 586);
-            shape("#b2ad7c", 105, 66, 157, 113, 83, 546, 66, 535);
-            outlined("#9c5c43", "#604d35", 3, -30, 93, 93, 44, 177, 108, 153, 128, 93, 79, -28, 119);
-            for (int i = 0; i < 13; i++) line(0, 139 + i * 29, 95 - i * 2.2, 129 + i * 29, "#b4a680", 1.5);
-            window(20, 235, 48, 87);
-            outlined("#a67a4d", "#705638", 2, 9, 337, 76, 329, 68, 349, 15, 355);
-            for (int i = 0; i < 5; i++) flower(17 + i * 11, 327 - i % 2 * 6, i % 2 == 0 ? "#eee1aa" : "#d2a074");
+            // The facade is naturally cropped by the camera, as in the original game.
+            // The lawn is drawn afterwards, retaining the exact projected boundary.
+            g.drawImage(GardenAssets.HOUSE, -462, 30, 690, 460);
         }
     }
-
     private void drawMenuGarden() {
         shape("#a1ba69", 0, 270, 1000, 236, 1000, 600, 0, 600);
         shape("#739d46", 75, 431, 753, 280, 1000, 383, 1000, 600, 0, 600);
-        for (int i = 0; i < 6; i++) {
-            shape(i % 2 == 0 ? "#8eb24e" : "#82a846", 50 + i * 130, 405 - i * 22,
-                    180 + i * 130, 383 - i * 22, 950, 600, 770, 600);
+        for (int i = 0; i < 5; i++) {
+            // Parallel mowing bands widen towards the camera, without crossing.
+            shape("#87ac4a", 230 + i * 132, 397 - i * 22,
+                    296 + i * 132, 386 - i * 22, 451 + i * 150, 600, 376 + i * 150, 600);
         }
         for (int i = 0; i < 19; i++) {
             double x = 273 + i * 39;
@@ -139,7 +141,7 @@ final class LawnView extends Canvas {
         }
         house(true);
         // The path curves around the house into the playable garden.
-        shape("#c9bd98", 0, 472, 66, 435, 159, 411, 222, 442, 311, 600, 135, 600);
+        shape("#c9bd98", 0, 472, 66, 435, 222, 415, 257, 439, 311, 600, 135, 600);
         line(26, 491, 198, 457, "#a49c7b", 2);
         line(70, 543, 245, 515, "#a49c7b", 2);
         line(127, 598, 284, 573, "#a49c7b", 2);

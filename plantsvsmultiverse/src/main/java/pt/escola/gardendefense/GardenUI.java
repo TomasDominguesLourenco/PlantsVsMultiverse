@@ -6,6 +6,14 @@ import javafx.animation.ParallelTransition;
 import javafx.animation.TranslateTransition;
 import javafx.scene.Cursor;
 import javafx.scene.Group;
+import javafx.scene.AccessibleRole;
+import javafx.scene.control.CheckBox;
+import javafx.scene.control.Slider;
+import javafx.scene.control.Tooltip;
+import javafx.scene.effect.ColorAdjust;
+import javafx.scene.effect.DropShadow;
+import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
@@ -16,6 +24,9 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
 import static com.almasb.fxgl.dsl.FXGL.texture;
+import static com.almasb.fxgl.dsl.FXGL.getSettings;
+import static com.almasb.fxgl.dsl.FXGL.getPrimaryStage;
+import static com.almasb.fxgl.dsl.FXGL.play;
 
 /** Illustrated menu props and a compact seed tray. No actor animation lives here. */
 final class GardenUI {
@@ -24,6 +35,11 @@ final class GardenUI {
     private final Group hud = new Group();
     private final Group result = new Group();
     private final Group help = new Group();
+    private final Group pause = new Group();
+    private final Slider musicVolume = new Slider(0, 100, getSettings().getGlobalMusicVolume() * 100);
+    private final Slider soundVolume = new Slider(0, 100, getSettings().getGlobalSoundVolume() * 100);
+    private final CheckBox muted = new CheckBox("Silenciar som");
+    private final CheckBox fullScreen = new CheckBox("Ecrã inteiro");
     private final Text energy = label("150", 93, 54, 30, "#fff2bd", true);
     private final Text points = label("0000", 728, 43, 23, "#f5ebc6", true);
     private final Text hearts = label("● ● ●", 831, 44, 18, "#e8c46d", true);
@@ -34,9 +50,11 @@ final class GardenUI {
     private ParallelTransition entrance;
     private int lastSun = -1, lastScore = -1, lastLives = -1, lastSecond = -1;
 
-    GardenUI(Runnable play, Runnable home, Runnable quit) {
-        root.getChildren().addAll(hud, menu, result);
-        buildHud(home);
+    GardenUI(Runnable play, Runnable home, Runnable togglePause, Runnable quit) {
+        root.getStylesheets().add(java.util.Objects.requireNonNull(
+                GardenUI.class.getResource("/assets/ui/garden.css")).toExternalForm());
+        root.getChildren().addAll(hud, menu, result, pause);
+        buildHud(togglePause);
         seed = new Rectangle(195, 20, 136, 63);
         seed.setArcWidth(4); seed.setArcHeight(4);
         seed.setStroke(Color.web("#3d4a2b")); seed.setStrokeWidth(2);
@@ -98,10 +116,11 @@ final class GardenUI {
                 label("OS ZOMBIES PASSARAM!", 338, 221, 29, "#3e4939", true), resultScore,
                 plank("JOGAR OUTRA VEZ", 322, 325, 357, 57, -1, true, play),
                 plank("VOLTAR AO MENU", 342, 402, 318, 46, 1, false, home));
-        hud.setVisible(false); result.setVisible(false); help.setVisible(false);
+        buildPause(togglePause, home, quit);
+        hud.setVisible(false); result.setVisible(false); help.setVisible(false); pause.setVisible(false);
     }
 
-    private void buildHud(Runnable home) {
+    private void buildHud(Runnable togglePause) {
         Canvas tray = new Canvas(1000, 94);
         var g = tray.getGraphicsContext2D();
         fill(g, "#4c3d28", 22, 15, 354, 14, 360, 87, 28, 91);
@@ -116,9 +135,60 @@ final class GardenUI {
         hud.getChildren().addAll(tray, sun, energy, points, clock, hearts,
                 label("PONTOS", 729, 25, 9, "#d3c69d", true),
                 label("VIDAS", 832, 25, 9, "#d3c69d", true),
-                plank("MENU", 902, 32, 65, 35, -1, false, home));
-        Text hint = label("Planta por 50 sol  ·  Apanha os sóis  ·  ESC: menu", 347, 590, 11, "#364c2c", true);
-        hud.getChildren().add(hint);
+                plank("PAUSA", 894, 29, 81, 40, -1, false, togglePause));
+        Text hint = label("Planta por 50 sol  ·  Apanha os sóis  ·  ESC / P: pausa", 338, 590, 11, "#eee7bb", true);
+        Rectangle hintBacking = new Rectangle(hint.getX() - 13, 575, hint.getLayoutBounds().getWidth() + 26, 23);
+        hintBacking.setArcWidth(8); hintBacking.setArcHeight(8); hintBacking.setFill(Color.web("#405b32db"));
+        hud.getChildren().addAll(hintBacking, hint);
+    }
+
+    private void buildPause(Runnable resume, Runnable home, Runnable quit) {
+        Rectangle veil = new Rectangle(1000, 600, Color.web("#182d24b3"));
+        Canvas backing = new Canvas(1000, 600);
+        var g = backing.getGraphicsContext2D();
+        fill(g, "#24322055", 281, 107, 719, 99, 731, 533, 283, 544);
+        fill(g, "#584a2f", 278, 95, 714, 88, 724, 525, 280, 535);
+        fill(g, "#ac8953", 284, 100, 708, 95, 716, 519, 286, 528);
+        fill(g, "#ede1b6", 300, 120, 695, 115, 700, 506, 301, 515);
+        stroke(g, "#c7b78a", 1.5, 315, 365, 684, 365);
+        pause.getChildren().addAll(veil, backing,
+                plank("PAUSA", 350, 69, 300, 72, -2, false, () -> {}),
+                label("O jardim espera por ti.", 411, 156, 14, "#68704b", false),
+                plank("CONTINUAR", 332, 175, 337, 56, -1, true, resume));
+        // The title is decorative, not a keyboard focus stop or an empty action.
+        var title = pause.getChildren().get(2);
+        title.setMouseTransparent(true); title.setFocusTraversable(false);
+        addVolumeRow("Música", musicVolume, 268);
+        addVolumeRow("Efeitos", soundVolume, 315);
+        muted.setLayoutX(321); muted.setLayoutY(334);
+        fullScreen.setLayoutX(522); fullScreen.setLayoutY(334);
+        fullScreen.setSelected(getPrimaryStage().isFullScreen());
+        fullScreen.selectedProperty().addListener((observable, oldValue, value) -> getPrimaryStage().setFullScreen(value));
+        getPrimaryStage().fullScreenProperty().addListener((observable, oldValue, value) -> fullScreen.setSelected(value));
+        muted.selectedProperty().addListener((observable, oldValue, value) -> applyAudio());
+        musicVolume.disableProperty().bind(muted.selectedProperty());
+        soundVolume.disableProperty().bind(muted.selectedProperty());
+        pause.getChildren().addAll(muted, fullScreen,
+                plank("MENU PRINCIPAL", 313, 387, 231, 47, -1, false, home),
+                plank("SAIR", 558, 387, 128, 47, 1, false, quit),
+                label("Voltar ao menu termina a partida atual.", 361, 462, 12, "#7c7050", false),
+                label("ESC, P ou ENTER para continuar", 376, 490, 12, "#52613b", true));
+    }
+
+    private void addVolumeRow(String caption, Slider slider, double baseline) {
+        Text percent = label("", 651, baseline, 13, "#52613b", true);
+        percent.textProperty().bind(slider.valueProperty().asString("%.0f%%"));
+        slider.setLayoutX(412); slider.setLayoutY(baseline - 19); slider.setPrefWidth(223);
+        slider.setBlockIncrement(5); slider.setAccessibleText("Volume de " + caption.toLowerCase());
+        slider.setTooltip(new Tooltip("Volume de " + caption.toLowerCase()));
+        slider.valueProperty().addListener((observable, oldValue, value) -> applyAudio());
+        if (slider == soundVolume) slider.setOnMouseReleased(event -> play("ui-tap.wav"));
+        pause.getChildren().addAll(label(caption, 323, baseline, 16, "#465638", true), slider, percent);
+    }
+
+    private void applyAudio() {
+        getSettings().setGlobalMusicVolume(muted.isSelected() ? 0 : musicVolume.getValue() / 100);
+        getSettings().setGlobalSoundVolume(muted.isSelected() ? 0 : soundVolume.getValue() / 100);
     }
 
     private void buildHelp() {
@@ -131,14 +201,20 @@ final class GardenUI {
     }
 
     void showMenu() {
+        pause.setVisible(false);
         hud.setVisible(false); result.setVisible(false); help.setVisible(false); menu.setVisible(true); enter(menu);
     }
     void showGame() {
+        pause.setVisible(false);
         stopEntrance(); menu.setVisible(false); result.setVisible(false); hud.setVisible(true); enter(hud);
     }
     void showResult(int score) {
+        pause.setVisible(false);
         resultScore.setText(String.format("%04d pontos", score)); result.setVisible(true); enter(result);
     }
+
+    void showPause() { pause.setVisible(true); enter(pause); }
+    void hidePause() { stopEntrance(); pause.setVisible(false); }
     void update(int sun, int score, int lives, double seconds) {
         if (sun != lastSun) {
             energy.setText(Integer.toString(sun));
@@ -154,7 +230,7 @@ final class GardenUI {
     }
     private void stopEntrance() {
         if (entrance != null) entrance.stop();
-        for (Group group : new Group[]{menu, hud, result}) { group.setOpacity(1); group.setTranslateY(0); }
+        for (Group group : new Group[]{menu, hud, result, pause}) { group.setOpacity(1); group.setTranslateY(0); }
     }
     private void enter(Group node) {
         stopEntrance();
@@ -166,31 +242,29 @@ final class GardenUI {
     }
 
     private Group plank(String caption, double x, double y, double w, double h, double angle, boolean primary, Runnable action) {
-        Canvas art = new Canvas(w + 4, h + 6);
-        var g = art.getGraphicsContext2D();
-        fill(g, "#34402970", 4, 9, w, 6, w + 2, h + 5, 6, h + 4);
-        fill(g, "#4c442c", 1, 5, w - 7, 0, w, 8, w - 2, h - 4, 7, h, 2, h - 10);
-        fill(g, primary ? "#698d45" : "#ac8750", 5, 8, w - 9, 4, w - 4, 10, w - 6, h - 8, 9, h - 4, 6, h - 12);
-        stroke(g, primary ? "#8caf5a" : "#c6a369", 2, 12, 11, w - 15, 7);
-        stroke(g, primary ? "#4e7134" : "#8b6a3e", 1, 18, h - 13, w * .43, h - 14);
-        stroke(g, primary ? "#4e7134" : "#8b6a3e", 1, w * .6, h - 12, w - 17, h - 15);
-        for (double nx : new double[]{13, w - 16}) {
-            g.setFill(Color.web("#504b35")); g.fillOval(nx, h / 2 - 2, 5, 5);
-            g.setFill(Color.web("#c4ba8c")); g.fillOval(nx + 1, h / 2 - 2, 2, 2);
-        }
+        ImageView art = new ImageView(GardenAssets.PLANK);
+        art.setFitWidth(w); art.setFitHeight(h * 1.23); art.setTranslateY(-h * .18); art.setSmooth(true);
+        if (primary) art.setEffect(new ColorAdjust(.35, -.35, -.18, 0));
         int size = primary ? 30 : h > 45 ? 22 : w < 100 ? 12 : 18;
-        Text text = label(caption, 0, h / 2 + size * .35, size, primary ? "#f3e9bd" : "#3e3b27", true);
+        Text text = label(caption, 0, h * .57 + size * .32, size, primary ? "#fff1c5" : "#40331f", true);
         text.setFont(Font.font("Arial Black", FontWeight.BOLD, size));
+        while (text.getLayoutBounds().getWidth() > w * .77 && size > 10) {
+            text.setFont(Font.font("Arial Black", FontWeight.BOLD, --size));
+        }
         text.setX((w - text.getLayoutBounds().getWidth()) / 2);
         Group group = new Group(art, text);
+        DropShadow shadow = new DropShadow(4, Color.web("#27352455")); shadow.setOffsetY(3);
+        group.setEffect(shadow);
+        group.setAccessibleRole(AccessibleRole.BUTTON); group.setAccessibleText(caption); group.setFocusTraversable(true);
         group.setTranslateX(x); group.setTranslateY(y); group.setRotate(angle); group.setCursor(Cursor.HAND);
         TranslateTransition hover = new TranslateTransition(Duration.millis(120), group);
         hover.setInterpolator(Interpolator.EASE_OUT);
         group.setOnMouseEntered(e -> { hover.stop(); hover.setToY(y - 3); hover.play(); text.setFill(Color.web("#fff4c4")); });
-        group.setOnMouseExited(e -> { hover.stop(); hover.setToY(y); hover.play(); text.setFill(Color.web(primary ? "#f3e9bd" : "#3e3b27")); group.setScaleX(1); group.setScaleY(1); });
+        group.setOnMouseExited(e -> { hover.stop(); hover.setToY(y); hover.play(); text.setFill(Color.web(primary ? "#fff1c5" : "#40331f")); group.setScaleX(1); group.setScaleY(1); });
         group.setOnMousePressed(e -> { group.setScaleX(.985); group.setScaleY(.985); });
         group.setOnMouseReleased(e -> { group.setScaleX(1); group.setScaleY(1); });
-        group.setOnMouseClicked(e -> { action.run(); e.consume(); });
+        group.setOnMouseClicked(e -> { play("ui-tap.wav"); action.run(); e.consume(); });
+        group.setOnKeyPressed(e -> { if (e.getCode() == KeyCode.SPACE) { play("ui-tap.wav"); action.run(); e.consume(); } });
         return group;
     }
 

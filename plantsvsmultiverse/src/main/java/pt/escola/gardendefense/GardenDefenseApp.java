@@ -18,7 +18,7 @@ import static com.almasb.fxgl.dsl.FXGL.*;
 
 public class GardenDefenseApp extends GameApplication {
 
-    private enum State { MENU, PLAYING, GAME_OVER }
+    private enum State { MENU, ENTERING_GARDEN, PLAYING, PAUSED, GAME_OVER }
 
     private static final int WIDTH = 1000;
     private static final int HEIGHT = 600;
@@ -58,6 +58,7 @@ public class GardenDefenseApp extends GameApplication {
     private double sunTimer = 0;
 
     private GardenUI ui;
+    private GardenTransition gardenTransition;
     private Polygon hoverHighlight;
 
     private static class Plant {
@@ -118,24 +119,33 @@ public class GardenDefenseApp extends GameApplication {
         settings.setHeight(HEIGHT);
         settings.setTitle("Plants vs. Multiverse");
         settings.setVersion("2.0");
-        settings.setStageStyle(javafx.stage.StageStyle.UNDECORATED);
         settings.setFullScreenAllowed(true);
         settings.setFullScreenFromStart(true);
         settings.setPreserveResizeRatio(true);
+        // All menu and pause controls belong to GardenUI, including ESC.
+        settings.setMainMenuEnabled(false);
+        settings.setGameMenuEnabled(false);
     }
 
     @Override
     protected void initGame() {
         loopBGM("MainTheme.wav");
-        getGameScene().setBackgroundColor(Color.web("#83905c"));
+        getGameScene().setBackgroundColor(Color.web("#1d2c24"));
 
         hoverHighlight = new Polygon();
         hoverHighlight.setMouseTransparent(true);
         hoverHighlight.setStrokeWidth(2);
         hoverHighlight.setVisible(false);
         getGameScene().addUINode(hoverHighlight);
-        ui = new GardenUI(this::startGame, this::showMenu, () -> javafx.application.Platform.exit());
+        ui = new GardenUI(this::startGame, this::showMenu, this::togglePause,
+                () -> javafx.application.Platform.exit());
         getGameScene().addUINode(ui.root);
+        gardenTransition = new GardenTransition(getGameScene().getContentRoot());
+        getPrimaryStage().setFullScreenExitKeyCombination(javafx.scene.input.KeyCombination.NO_MATCH);
+        getPrimaryStage().setFullScreenExitHint("");
+        getPrimaryStage().focusedProperty().addListener((observable, wasFocused, focused) -> {
+            if (!focused && state == State.PLAYING) pauseGame();
+        });
 
         showMenu();
     }
@@ -147,6 +157,8 @@ public class GardenDefenseApp extends GameApplication {
             protected void onActionBegin() {
                 if (state == State.MENU || state == State.GAME_OVER) {
                     startGame();
+                } else if (state == State.PAUSED) {
+                    resumeGame();
                 }
             }
         }, KeyCode.ENTER);
@@ -154,18 +166,22 @@ public class GardenDefenseApp extends GameApplication {
         getInput().addAction(new UserAction("Menu") {
             @Override
             protected void onActionBegin() {
-                if (state != State.MENU) {
-                    showMenu();
-                }
+                if (state == State.GAME_OVER) showMenu();
+                else togglePause();
             }
         }, KeyCode.M);
 
-        getInput().addAction(new UserAction("Voltar ao quintal") {
+        getInput().addAction(new UserAction("Pausar ou continuar") {
             @Override
             protected void onActionBegin() {
-                if (state != State.MENU) showMenu();
+                togglePause();
             }
         }, KeyCode.ESCAPE);
+
+        getInput().addAction(new UserAction("Pausa rápida") {
+            @Override
+            protected void onActionBegin() { togglePause(); }
+        }, KeyCode.P);
 
         getInput().addAction(new UserAction("Energia de teste") {
             @Override
@@ -210,6 +226,7 @@ public class GardenDefenseApp extends GameApplication {
 
             if (dx * dx + dy * dy <= 42 * 42) {
                 sun += SUN_AMOUNT;
+                play("sun-pick.wav");
                 removeSun(s);
                 updateInterface();
                 return true;
@@ -235,10 +252,13 @@ public class GardenDefenseApp extends GameApplication {
 
         sun -= PLANT_COST;
         plantAt(row, col);
+        play("seed-plant.wav");
         updateInterface();
     }
 
     private void showMenu() {
+        if (gardenTransition != null) gardenTransition.cancel();
+        ui.root.setDisable(false);
         state = State.MENU;
         clearWorld();
 
@@ -247,7 +267,37 @@ public class GardenDefenseApp extends GameApplication {
         ui.showMenu();
     }
 
+    private void togglePause() {
+        if (state == State.PLAYING) pauseGame();
+        else if (state == State.PAUSED) resumeGame();
+    }
+
+    private void pauseGame() {
+        if (state != State.PLAYING) return;
+        state = State.PAUSED;
+        hoverHighlight.setVisible(false);
+        ui.showPause();
+    }
+
+    private void resumeGame() {
+        if (state != State.PAUSED) return;
+        ui.hidePause();
+        state = State.PLAYING;
+    }
+
     private void startGame() {
+        if (ui == null || (state != State.MENU && state != State.GAME_OVER)) return;
+        state = State.ENTERING_GARDEN;
+        hoverHighlight.setVisible(false);
+        ui.root.setDisable(true);
+        gardenTransition.play(this::prepareGame, () -> {
+            ui.root.setDisable(false);
+            state = State.PLAYING;
+            if (!getPrimaryStage().isFocused()) pauseGame();
+        });
+    }
+
+    private void prepareGame() {
         clearWorld();
 
         sun = 150;
@@ -268,7 +318,6 @@ public class GardenDefenseApp extends GameApplication {
         ui.showGame();
 
         drawLawn();
-        state = State.PLAYING;
         updateInterface();
     }
 
