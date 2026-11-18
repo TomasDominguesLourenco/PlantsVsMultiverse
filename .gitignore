@@ -1,2 +1,3 @@
 # Local compilation, runtime checks and JavaFX preview cache.
 /.design-check/
+/plantsvsmultiverse/target/
