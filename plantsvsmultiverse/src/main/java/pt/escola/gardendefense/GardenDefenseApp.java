@@ -10,8 +10,10 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Polygon;
 
+import pt.escola.gardendefense.personagens.plants.GokuPlant;
 import pt.escola.gardendefense.personagens.plants.PeaShooter;
 import pt.escola.gardendefense.personagens.plants.Planta;
+import pt.escola.gardendefense.personagens.plants.SpriteSheetView;
 import pt.escola.gardendefense.personagens.zombies.ZombieNormal;
 
 import java.util.ArrayList;
@@ -35,8 +37,11 @@ public class GardenDefenseApp extends GameApplication {
     private static final double CELL_H = 90;
 
     private static final int SUN_AMOUNT = 25;
+    private static final int PROJECTILE_SIZE = 16;
 
     private final Planta plantaPadrao = new PeaShooter();
+    private final Planta gokuPlant = new GokuPlant();
+    private Planta plantaSelecionada = plantaPadrao;
     private final ZombieNormal zombiePadrao = new ZombieNormal();
 
     private State state = State.MENU;
@@ -63,13 +68,15 @@ public class GardenDefenseApp extends GameApplication {
 
     private static class Plant {
         final Planta definicao;
+        final SpriteSheetView animation;
         Entity entity;
         final int row;
         final int col;
         double hp;
 
-        Plant(Planta definicao, Entity entity, int row, int col) {
+        Plant(Planta definicao, Entity entity, int row, int col, SpriteSheetView animation) {
             this.definicao = definicao;
+            this.animation = animation;
             this.hp = definicao.getVidaMax();
             this.entity = entity;
             this.row = row;
@@ -101,10 +108,12 @@ public class GardenDefenseApp extends GameApplication {
 
         final double speed;
         final int dano;
+        final double lift;
 
-        Bullet(Entity entity, int row, double speed, int dano) {
+        Bullet(Entity entity, int row, double speed, int dano, double lift) {
             this.speed = speed;
             this.dano = dano;
+            this.lift = lift;
             this.entity = entity;
             this.row = row;
         }
@@ -203,12 +212,32 @@ public class GardenDefenseApp extends GameApplication {
             }
         }, KeyCode.C);
 
+        bindPlantSelection(plantaPadrao, KeyCode.DIGIT1);
+        bindPlantSelection(gokuPlant, KeyCode.DIGIT2);
+
         getInput().addAction(new UserAction("Clique") {
             @Override
             protected void onActionBegin() {
                 handleClick();
             }
         }, MouseButton.PRIMARY);
+    }
+
+    private void bindPlantSelection(Planta plant, KeyCode key) {
+        getInput().addAction(new UserAction("Selecionar " + plant.getNome()) {
+            @Override
+            protected void onActionBegin() {
+                if (state == State.PLAYING) {
+                    selectPlant(plant);
+                }
+            }
+        }, key);
+    }
+
+    private void selectPlant(Planta plant) {
+        plantaSelecionada = plant;
+        String name = plant == plantaPadrao ? "Ervilhadora" : plant.getNome();
+        ui.showSelectedPlant(name, plant.getCustoSol());
     }
 
     private void handleClick() {
@@ -256,12 +285,13 @@ public class GardenDefenseApp extends GameApplication {
             return;
         }
 
-        if (hasPlant[row][col] || sun < plantaPadrao.getCustoSol()) {
+        Planta def = plantaSelecionada;
+        if (hasPlant[row][col] || sun < def.getCustoSol()) {
             return;
         }
 
-        sun -= plantaPadrao.getCustoSol();
-        plantAt(row, col);
+        plantAt(row, col, def);
+        sun -= def.getCustoSol();
         play("seed-plant.wav");
         updateInterface();
     }
@@ -326,6 +356,7 @@ public class GardenDefenseApp extends GameApplication {
         }
 
         ui.showGame();
+        selectPlant(plantaPadrao);
 
         drawLawn();
         updateInterface();
@@ -354,18 +385,19 @@ public class GardenDefenseApp extends GameApplication {
         }
     }
 
-    private void plantAt(int row, int col) {
-        Planta def = plantaPadrao;
+    private void plantAt(int row, int col, Planta def) {
         double x = GRID_X + col * CELL_W + CELL_W / 2 - def.getLargura() / 2;
         double y = GRID_Y + row * CELL_H + CELL_H / 2 - def.getAltura() / 2;
 
+        var view = def.criarVista();
         Entity plant = entityBuilder()
                 .at(x, y)
                 .view(groundShadow(def.getLargura(), def.getAltura()))
-                .view(texture(def.getTextura(), def.getLargura(), def.getAltura()))
+                .view(view)
                 .buildAndAttach();
 
-        plantGrid[row][col] = new Plant(def, plant, row, col);
+        plantGrid[row][col] = new Plant(def, plant, row, col,
+                view instanceof SpriteSheetView animation ? animation : null);
         hasPlant[row][col] = true;
         BoardProjection.place(plant, def.getLargura(), def.getAltura(), row, 0);
     }
@@ -430,7 +462,7 @@ public class GardenDefenseApp extends GameApplication {
             return;
         }
         BoardProjection.cell(hoverHighlight, row, col);
-        boolean available = !hasPlant[row][col] && sun >= plantaPadrao.getCustoSol();
+        boolean available = !hasPlant[row][col] && sun >= plantaSelecionada.getCustoSol();
         hoverHighlight.setStroke(Color.web(available ? "#f2e59b" : "#b86d4e"));
         hoverHighlight.setFill(Color.web(available ? "#f2e59b30" : "#b86d4e25"));
         hoverHighlight.setVisible(true);
@@ -441,6 +473,12 @@ public class GardenDefenseApp extends GameApplication {
             for (int col = 0; col < COLS; col++) {
                 Plant plant = plantGrid[row][col];
                 if (plant == null) {
+                    continue;
+                }
+                if (plant.animation != null) {
+                    plant.animation.advance(tpf);
+                }
+                if (!plant.definicao.podeDisparar()) {
                     continue;
                 }
 
@@ -469,18 +507,19 @@ public class GardenDefenseApp extends GameApplication {
 
         Entity bullet = entityBuilder()
                 .at(x, y)
-                .viewWithBBox(texture("ProjectilePea.png", 16, 16))
+                .viewWithBBox(plant.definicao.criarVistaProjetil(PROJECTILE_SIZE))
                 .buildAndAttach();
 
+        double lift = plant.definicao.getAlturaProjetil();
         bullets.add(new Bullet(bullet, plant.row, plant.definicao.getVelocidadeProjetil(),
-                plant.definicao.getDano()));
-        BoardProjection.place(bullet, 16, 16, plant.row, 32);
+                plant.definicao.getDano(), lift));
+        BoardProjection.place(bullet, PROJECTILE_SIZE, PROJECTILE_SIZE, plant.row, lift);
     }
 
     private void updateBullets(double tpf) {
         for (Bullet bullet : new ArrayList<>(bullets)) {
             bullet.entity.setX(bullet.entity.getX() + bullet.speed * tpf);
-            BoardProjection.place(bullet.entity, 16, 16, bullet.row, 32);
+            BoardProjection.place(bullet.entity, PROJECTILE_SIZE, PROJECTILE_SIZE, bullet.row, bullet.lift);
             if (bullet.entity.getX() > WIDTH) {
                 removeBullet(bullet);
             }

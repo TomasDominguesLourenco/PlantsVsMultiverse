@@ -48,6 +48,7 @@ final class GardenUI {
     private final Text clock = label("00:00", 728, 64, 11, "#d3c69d", false);
     private final Text resultScore = label("", 387, 282, 23, "#3e4939", true);
     private final Planta plantaPadrao;
+    private final Text selectedPlant = label("", 375, 65, 13, "#f5ebc6", true);
     private final Rectangle seed;
     private ParallelTransition entrance;
     private int lastSun = -1, lastScore = -1, lastLives = -1, lastSecond = -1;
@@ -68,6 +69,9 @@ final class GardenUI {
                 label("ERVILHADORA", 249, 38, 9, "#526236", true),
                 label(Integer.toString(plantaPadrao.getCustoSol()), 271, 68, 20, "#384b27", true),
                 label("SOL", 299, 65, 9, "#526236", true));
+        hud.getChildren().addAll(
+                label("1  Ervilhadora   ·   2  Goku Planta", 375, 40, 13, "#f5ebc6", true),
+                selectedPlant);
 
         menu.getChildren().add(new LawnView(true));
         Canvas props = new Canvas(1000, 600);
@@ -124,6 +128,10 @@ final class GardenUI {
         hud.setVisible(false); result.setVisible(false); help.setVisible(false); pause.setVisible(false);
     }
 
+    void showSelectedPlant(String name, int cost) {
+        selectedPlant.setText("Selecionada  ·  " + name + "  ·  " + cost + " sol");
+    }
+
     private void buildHud(Runnable togglePause) {
         Canvas tray = new Canvas(1000, 94);
         var g = tray.getGraphicsContext2D();
@@ -140,7 +148,7 @@ final class GardenUI {
                 label("PONTOS", 729, 25, 9, "#d3c69d", true),
                 label("VIDAS", 832, 25, 9, "#d3c69d", true),
                 plank("PAUSA", 894, 29, 81, 40, -1, false, togglePause));
-        Text hint = label("Planta por " + plantaPadrao.getCustoSol() + " sol  ·  Apanha os sóis  ·  ESC / P: pausa", 338, 590, 11, "#eee7bb", true);
+        Text hint = label("Clica numa célula livre  ·  Apanha os sóis  ·  ESC / P: pausa", 338, 590, 11, "#eee7bb", true);
         Rectangle hintBacking = new Rectangle(hint.getX() - 13, 575, hint.getLayoutBounds().getWidth() + 26, 23);
         hintBacking.setArcWidth(8); hintBacking.setArcHeight(8); hintBacking.setFill(Color.web("#405b32db"));
         hud.getChildren().addAll(hintBacking, hint);
