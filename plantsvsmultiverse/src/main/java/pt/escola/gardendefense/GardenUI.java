@@ -23,6 +23,8 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
+import pt.escola.gardendefense.personagens.plants.Planta;
+
 import static com.almasb.fxgl.dsl.FXGL.texture;
 import static com.almasb.fxgl.dsl.FXGL.getSettings;
 import static com.almasb.fxgl.dsl.FXGL.getPrimaryStage;
@@ -45,12 +47,13 @@ final class GardenUI {
     private final Text hearts = label("● ● ●", 831, 44, 18, "#e8c46d", true);
     private final Text clock = label("00:00", 728, 64, 11, "#d3c69d", false);
     private final Text resultScore = label("", 387, 282, 23, "#3e4939", true);
-    private final Text seedCost = label("50", 271, 68, 20, "#384b27", true);
+    private final Planta plantaPadrao;
     private final Rectangle seed;
     private ParallelTransition entrance;
     private int lastSun = -1, lastScore = -1, lastLives = -1, lastSecond = -1;
 
-    GardenUI(Runnable play, Runnable home, Runnable togglePause, Runnable quit) {
+    GardenUI(Planta plantaPadrao, Runnable play, Runnable home, Runnable togglePause, Runnable quit) {
+        this.plantaPadrao = plantaPadrao;
         root.getStylesheets().add(java.util.Objects.requireNonNull(
                 GardenUI.class.getResource("/assets/ui/garden.css")).toExternalForm());
         root.getChildren().addAll(hud, menu, result, pause);
@@ -59,10 +62,11 @@ final class GardenUI {
         seed.setArcWidth(4); seed.setArcHeight(4);
         seed.setStroke(Color.web("#3d4a2b")); seed.setStrokeWidth(2);
         seed.setFill(Color.web("#e9dba6"));
-        var pea = texture("PeaShooter.png", 39, 45);
+        var pea = texture(plantaPadrao.getTextura(), 39, 45);
         pea.setTranslateX(204); pea.setTranslateY(30);
         hud.getChildren().addAll(seed, pea,
-                label("ERVILHADORA", 249, 38, 9, "#526236", true), seedCost,
+                label("ERVILHADORA", 249, 38, 9, "#526236", true),
+                label(Integer.toString(plantaPadrao.getCustoSol()), 271, 68, 20, "#384b27", true),
                 label("SOL", 299, 65, 9, "#526236", true));
 
         menu.getChildren().add(new LawnView(true));
@@ -102,7 +106,7 @@ final class GardenUI {
             double x = 330 + i * 84, y = 366 + i % 2 * 33;
             var shadow = new javafx.scene.shape.Ellipse(x + 31, y + 73, 30, 7);
             shadow.setFill(Color.web("#355c3040"));
-            var plant = texture("PeaShooter.png", 62, 73);
+            var plant = texture(plantaPadrao.getTextura(), 62, 73);
             plant.setTranslateX(x); plant.setTranslateY(y);
             menu.getChildren().addAll(shadow, plant);
         }
@@ -136,7 +140,7 @@ final class GardenUI {
                 label("PONTOS", 729, 25, 9, "#d3c69d", true),
                 label("VIDAS", 832, 25, 9, "#d3c69d", true),
                 plank("PAUSA", 894, 29, 81, 40, -1, false, togglePause));
-        Text hint = label("Planta por 50 sol  ·  Apanha os sóis  ·  ESC / P: pausa", 338, 590, 11, "#eee7bb", true);
+        Text hint = label("Planta por " + plantaPadrao.getCustoSol() + " sol  ·  Apanha os sóis  ·  ESC / P: pausa", 338, 590, 11, "#eee7bb", true);
         Rectangle hintBacking = new Rectangle(hint.getX() - 13, 575, hint.getLayoutBounds().getWidth() + 26, 23);
         hintBacking.setArcWidth(8); hintBacking.setArcHeight(8); hintBacking.setFill(Color.web("#405b32db"));
         hud.getChildren().addAll(hintBacking, hint);
@@ -196,7 +200,7 @@ final class GardenUI {
         paper.setFill(Color.web("#e9dfaf")); paper.setStroke(Color.web("#75663e")); paper.setStrokeWidth(3);
         help.getChildren().addAll(paper,
                 label("COMO JOGAR", 269, 314, 25, "#40552e", true),
-                label("1. Clica na relva para plantar.\n    Cada ervilhadora custa 50 sol.\n\n2. Apanha os sóis: valem 25.\n\n3. Protege a casa dos zombies!", 269, 346, 14, "#4b5837", false),
+                label("1. Clica na relva para plantar.\n    Cada ervilhadora custa " + plantaPadrao.getCustoSol() + " sol.\n\n2. Apanha os sóis: valem 25.\n\n3. Protege a casa dos zombies!", 269, 346, 14, "#4b5837", false),
                 label("Clica novamente na placa para fechar.", 267, 462, 11, "#7a7952", false));
     }
 
@@ -218,7 +222,7 @@ final class GardenUI {
     void update(int sun, int score, int lives, double seconds) {
         if (sun != lastSun) {
             energy.setText(Integer.toString(sun));
-            seed.setFill(Color.web(sun >= 50 ? "#e9dba6" : "#aaa58b")); lastSun = sun;
+            seed.setFill(Color.web(sun >= plantaPadrao.getCustoSol() ? "#e9dba6" : "#aaa58b")); lastSun = sun;
         }
         if (score != lastScore) { points.setText(String.format("%04d", score)); lastScore = score; }
         if (lives != lastLives) {
