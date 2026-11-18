@@ -1,0 +1,31 @@
+.slider .track {
+    -fx-background-color: #ac9e72;
+    -fx-background-insets: 0;
+    -fx-background-radius: 6;
+    -fx-border-color: #8d815b;
+    -fx-border-radius: 6;
+    -fx-pref-height: 7;
+}
+.slider .thumb {
+    -fx-background-color: #f0d99c;
+    -fx-border-color: #627341;
+    -fx-border-width: 2;
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+    -fx-padding: 7;
+    -fx-effect: dropshadow(gaussian, #4a513844, 3, 0, 0, 2);
+}
+.slider:focused .thumb { -fx-border-color: #344e2d; -fx-background-color: #ffe9aa; }
+.slider:disabled { -fx-opacity: 0.4; }
+.check-box { -fx-font-family: "Trebuchet MS"; -fx-font-size: 13px; -fx-text-fill: #465638; }
+.check-box .box {
+    -fx-background-color: #f6ebc6;
+    -fx-background-radius: 3;
+    -fx-border-color: #8b8b59;
+    -fx-border-width: 1.5;
+    -fx-border-radius: 3;
+    -fx-padding: 4;
+}
+.check-box:selected .mark { -fx-background-color: #4e7338; }
+.check-box:focused .box { -fx-border-color: #35542b; }
+.tooltip { -fx-font-family: "Trebuchet MS"; -fx-background-color: #3e4c32; -fx-text-fill: #f2e8bf; }
