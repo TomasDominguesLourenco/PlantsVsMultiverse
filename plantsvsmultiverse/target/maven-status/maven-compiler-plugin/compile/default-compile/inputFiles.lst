@@ -1,1 +1,6 @@
 /home/tomasdl01/Desktop/Java/plantsvsmultiverse/src/main/java/pt/escola/gardendefense/GardenDefenseApp.java
+/home/tomasdl01/Desktop/Java/plantsvsmultiverse/src/main/java/pt/escola/gardendefense/personagens/Personagem.java
+/home/tomasdl01/Desktop/Java/plantsvsmultiverse/src/main/java/pt/escola/gardendefense/personagens/plants/PeaShooter.java
+/home/tomasdl01/Desktop/Java/plantsvsmultiverse/src/main/java/pt/escola/gardendefense/personagens/plants/Planta.java
+/home/tomasdl01/Desktop/Java/plantsvsmultiverse/src/main/java/pt/escola/gardendefense/personagens/zombies/Zombie.java
+/home/tomasdl01/Desktop/Java/plantsvsmultiverse/src/main/java/pt/escola/gardendefense/personagens/zombies/ZombieNormal.java

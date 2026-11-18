@@ -12,6 +12,10 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 
+import pt.escola.gardendefense.personagens.plants.PeaShooter;
+import pt.escola.gardendefense.personagens.plants.Planta;
+import pt.escola.gardendefense.personagens.zombies.ZombieNormal;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -32,14 +36,10 @@ public class GardenDefenseApp extends GameApplication {
     private static final double CELL_W = 90;
     private static final double CELL_H = 90;
 
-    private static final int PLANT_COST = 50;
-    private static final int PLANT_HP = 100;
-    private static final double PLANT_W = 52;
-    private static final double PLANT_H = 58;
-    private static final double ZOMBIE_W = 38;
-    private static final double ZOMBIE_H = 80;
-    private static final double ZOMBIE_DPS = 35;
     private static final int SUN_AMOUNT = 25;
+
+    private final Planta plantaPadrao = new PeaShooter();
+    private final ZombieNormal zombiePadrao = new ZombieNormal();
 
     private State state = State.MENU;
 
@@ -69,41 +69,62 @@ public class GardenDefenseApp extends GameApplication {
     private Rectangle hoverHighlight;
 
     private static class Plant {
+        final Planta definicao;
         Entity entity;
         final int row;
         final int col;
-        double hp = PLANT_HP;
+        double hp;
 
-        Plant(Entity entity, int row, int col) {
+        Plant(Planta definicao, Entity entity, int row, int col) {
+            this.definicao = definicao;
             this.entity = entity;
             this.row = row;
             this.col = col;
+            this.hp = definicao.getVidaMax();
+        }
+
+        double getLargura() {
+            return definicao.getLargura();
         }
     }
 
     private static class Zombie {
+        final ZombieNormal definicao;
         Entity entity;
         final int row;
         int hp;
         final int maxHp;
         final double speed;
 
-        Zombie(Entity entity, int row, int hp, double speed) {
+        Zombie(ZombieNormal definicao, Entity entity, int row, int hp, double speed) {
+            this.definicao = definicao;
             this.entity = entity;
             this.row = row;
             this.hp = hp;
             this.maxHp = hp;
             this.speed = speed;
         }
+
+        double getLargura() {
+            return definicao.getLargura();
+        }
+
+        double getAltura() {
+            return definicao.getAltura();
+        }
     }
 
     private static class Bullet {
         Entity entity;
         final int row;
+        final double speed;
+        final int dano;
 
-        Bullet(Entity entity, int row) {
+        Bullet(Entity entity, int row, double speed, int dano) {
             this.entity = entity;
             this.row = row;
+            this.speed = speed;
+            this.dano = dano;
         }
     }
 
@@ -265,11 +286,11 @@ public class GardenDefenseApp extends GameApplication {
             return;
         }
 
-        if (hasPlant[row][col] || sun < PLANT_COST) {
+        if (hasPlant[row][col] || sun < plantaPadrao.getCustoSol()) {
             return;
         }
 
-        sun -= PLANT_COST;
+        sun -= plantaPadrao.getCustoSol();
         plantAt(row, col);
         updateInterface();
     }
@@ -356,15 +377,16 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private void plantAt(int row, int col) {
-        double x = GRID_X + col * CELL_W + CELL_W / 2 - PLANT_W / 2;
-        double y = GRID_Y + row * CELL_H + CELL_H / 2 - PLANT_H / 2;
+        Planta def = plantaPadrao;
+        double x = GRID_X + col * CELL_W + CELL_W / 2 - def.getLargura() / 2;
+        double y = GRID_Y + row * CELL_H + CELL_H / 2 - def.getAltura() / 2;
 
         Entity plant = entityBuilder()
                 .at(x, y)
-                .view(texture("PeaShooter.png", PLANT_W, PLANT_H))
+                .view(texture(def.getTextura(), def.getLargura(), def.getAltura()))
                 .buildAndAttach();
 
-        plantGrid[row][col] = new Plant(plant, row, col);
+        plantGrid[row][col] = new Plant(def, plant, row, col);
         hasPlant[row][col] = true;
     }
 
@@ -402,11 +424,11 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private double zombieSpeed() {
-        return 25 + Math.min(25, elapsed * 0.3);
+        return zombiePadrao.getVelocidade() + Math.min(25, elapsed * 0.3);
     }
 
     private int zombieHp() {
-        return 3 + (int) (elapsed / 45);
+        return zombiePadrao.getVidaMax() + (int) (elapsed / 45);
     }
 
     private void updateHover() {
@@ -427,7 +449,7 @@ public class GardenDefenseApp extends GameApplication {
         hoverHighlight.setY(y);
         hoverHighlight.setVisible(true);
 
-        if (!hasPlant[row][col] && sun >= PLANT_COST) {
+        if (!hasPlant[row][col] && sun >= plantaPadrao.getCustoSol()) {
             hoverHighlight.setStroke(Color.YELLOW);
             hoverHighlight.setFill(Color.rgb(255, 255, 120, 0.3));
         } else {
@@ -445,7 +467,7 @@ public class GardenDefenseApp extends GameApplication {
                 }
 
                 shootTimers[row][col] += tpf;
-                if (shootTimers[row][col] >= 1.3 && hasZombieInRow(row)) {
+                if (shootTimers[row][col] >= plant.definicao.getIntervaloTiro() && hasZombieInRow(row)) {
                     shootTimers[row][col] = 0;
                     shoot(plant);
                 }
@@ -464,7 +486,7 @@ public class GardenDefenseApp extends GameApplication {
 
     private void shoot(Plant plant) {
         Entity e = plant.entity;
-        double x = e.getX() + PLANT_W - 8;
+        double x = e.getX() + plant.getLargura() - 8;
         double y = e.getY() + 16;
 
         Entity bullet = entityBuilder()
@@ -472,12 +494,12 @@ public class GardenDefenseApp extends GameApplication {
                 .viewWithBBox(texture("ProjectilePea.png", 16, 16))
                 .buildAndAttach();
 
-        bullets.add(new Bullet(bullet, plant.row));
+        bullets.add(new Bullet(bullet, plant.row, plant.definicao.getVelocidadeProjetil(), plant.definicao.getDano()));
     }
 
     private void updateBullets(double tpf) {
         for (Bullet bullet : new ArrayList<>(bullets)) {
-            bullet.entity.setX(bullet.entity.getX() + 300 * tpf);
+            bullet.entity.setX(bullet.entity.getX() + bullet.speed * tpf);
             if (bullet.entity.getX() > WIDTH) {
                 removeBullet(bullet);
             }
@@ -485,16 +507,17 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private void spawnZombie() {
+        ZombieNormal def = zombiePadrao;
         int row = random.nextInt(ROWS);
-        double x = WIDTH - ZOMBIE_W;
-        double y = GRID_Y + row * CELL_H + CELL_H / 2 - ZOMBIE_H / 2;
+        double x = WIDTH - def.getLargura();
+        double y = GRID_Y + row * CELL_H + CELL_H / 2 - def.getAltura() / 2;
 
         Entity zombieEntity = entityBuilder()
                 .at(x, y)
-                .viewWithBBox(texture("Zombie.png", ZOMBIE_W, ZOMBIE_H))
+                .viewWithBBox(texture(def.getTextura(), def.getLargura(), def.getAltura()))
                 .buildAndAttach();
 
-        zombies.add(new Zombie(zombieEntity, row, zombieHp(), zombieSpeed()));
+        zombies.add(new Zombie(def, zombieEntity, row, zombieHp(), zombieSpeed()));
     }
 
     private void updateZombies(double tpf) {
@@ -503,7 +526,7 @@ public class GardenDefenseApp extends GameApplication {
             Plant blocking = findBlockingPlant(zombie);
 
             if (blocking != null) {
-                blocking.hp -= ZOMBIE_DPS * tpf;
+                blocking.hp -= zombie.definicao.getDanoPorSegundo() * tpf;
                 if (blocking.hp <= 0) {
                     removePlant(blocking);
                 }
@@ -527,7 +550,7 @@ public class GardenDefenseApp extends GameApplication {
     private Plant findBlockingPlant(Zombie zombie) {
         Entity e = zombie.entity;
         double zLeft = e.getX();
-        double zRight = e.getX() + ZOMBIE_W;
+        double zRight = e.getX() + zombie.getLargura();
 
         for (int col = 0; col < COLS; col++) {
             Plant plant = plantGrid[zombie.row][col];
@@ -536,7 +559,7 @@ public class GardenDefenseApp extends GameApplication {
             }
 
             double pLeft = plant.entity.getX();
-            double pRight = pLeft + PLANT_W;
+            double pRight = pLeft + plant.getLargura();
 
             if (zLeft < pRight && zRight > pLeft) {
                 return plant;
@@ -589,12 +612,12 @@ public class GardenDefenseApp extends GameApplication {
                 }
 
                 Entity z = zombie.entity;
-                boolean sameRow = Math.abs(b.getY() - (z.getY() + ZOMBIE_H / 2)) < 30;
-                boolean touching = Math.abs(b.getX() - (z.getX() + ZOMBIE_W / 2)) < 32;
+                boolean sameRow = Math.abs(b.getY() - (z.getY() + zombie.getAltura() / 2)) < 30;
+                boolean touching = Math.abs(b.getX() - (z.getX() + zombie.getLargura() / 2)) < 32;
 
                 if (sameRow && touching) {
                     removeBullet(bullet);
-                    zombie.hp--;
+                    zombie.hp -= bullet.dano;
 
                     if (zombie.hp <= 0) {
                         removeZombie(zombie);
