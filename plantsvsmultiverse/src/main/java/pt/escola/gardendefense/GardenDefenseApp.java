@@ -8,9 +8,7 @@ import com.almasb.fxgl.input.UserAction;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
-import javafx.scene.text.Font;
-import javafx.scene.text.Text;
+import javafx.scene.shape.Polygon;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +18,7 @@ import static com.almasb.fxgl.dsl.FXGL.*;
 
 public class GardenDefenseApp extends GameApplication {
 
-    private enum State { MENU, PLAYING, GAME_OVER }
+    private enum State { MENU, ENTERING_GARDEN, PLAYING, PAUSED, GAME_OVER }
 
     private static final int WIDTH = 1000;
     private static final int HEIGHT = 600;
@@ -59,14 +57,9 @@ public class GardenDefenseApp extends GameApplication {
     private double spawnTimer = 0;
     private double sunTimer = 0;
 
-    private Text statusText;
-    private Text controlsText;
-    private Text menuTitle;
-    private Text menuSubtitle;
-    private Text menuHint;
-    private Text menuControls;
-    private Text gameOverText;
-    private Rectangle hoverHighlight;
+    private GardenUI ui;
+    private GardenTransition gardenTransition;
+    private Polygon hoverHighlight;
 
     private static class Plant {
         Entity entity;
@@ -124,61 +117,37 @@ public class GardenDefenseApp extends GameApplication {
     protected void initSettings(GameSettings settings) {
         settings.setWidth(WIDTH);
         settings.setHeight(HEIGHT);
-        settings.setTitle("Plants VS Multiversus");
+        settings.setTitle("Plants vs. Multiverse");
         settings.setVersion("2.0");
-        settings.setStageStyle(javafx.stage.StageStyle.UNDECORATED);
         settings.setFullScreenAllowed(true);
+        settings.setFullScreenFromStart(true);
+        settings.setPreserveResizeRatio(true);
+        // All menu and pause controls belong to GardenUI, including ESC.
+        settings.setMainMenuEnabled(false);
+        settings.setGameMenuEnabled(false);
     }
 
     @Override
     protected void initGame() {
-        goFullscreen();
         loopBGM("MainTheme.wav");
-        getGameScene().setBackgroundColor(Color.rgb(35, 45, 35));
+        getGameScene().setBackgroundColor(Color.web("#1d2c24"));
 
-        statusText = uiText("", 25, 35, 19);
-        controlsText = uiText("Clique: plantar / apanhar sol | ENTER: começar | M: menu", 25, 575, 15);
-
-        menuTitle = uiText("PLANTS VS MULTIVERSUS", 220, 200, 42);
-        menuSubtitle = uiText("Defende o jardim dos zombies!", 330, 250, 22);
-        menuControls = uiText(
-                "Clique numa célula para plantar (50 energia)\n"
-                + "Clique no sol para o apanhar (+25)\n"
-                + "C: +25 energia (tecla de teste)",
-                300, 320, 17
-        );
-        menuHint = uiText("— premi ENTER ou clique para começar —", 310, 430, 20);
-
-        gameOverText = uiText("", 300, 260, 36);
-
-        hoverHighlight = new Rectangle(CELL_W - 2, CELL_H - 2);
-        hoverHighlight.setFill(Color.rgb(255, 255, 255, 0.25));
-        hoverHighlight.setStroke(Color.YELLOW);
+        hoverHighlight = new Polygon();
+        hoverHighlight.setMouseTransparent(true);
         hoverHighlight.setStrokeWidth(2);
         hoverHighlight.setVisible(false);
         getGameScene().addUINode(hoverHighlight);
+        ui = new GardenUI(this::startGame, this::showMenu, this::togglePause,
+                () -> javafx.application.Platform.exit());
+        getGameScene().addUINode(ui.root);
+        gardenTransition = new GardenTransition(getGameScene().getContentRoot());
+        getPrimaryStage().setFullScreenExitKeyCombination(javafx.scene.input.KeyCombination.NO_MATCH);
+        getPrimaryStage().setFullScreenExitHint("");
+        getPrimaryStage().focusedProperty().addListener((observable, wasFocused, focused) -> {
+            if (!focused && state == State.PLAYING) pauseGame();
+        });
 
         showMenu();
-    }
-
-    private Text uiText(String content, double x, double y, int size) {
-        Text t = new Text(content);
-        t.setFont(Font.font("Arial", size));
-        t.setFill(Color.WHITE);
-        t.setX(x);
-        t.setY(y);
-        getGameScene().addUINode(t);
-        return t;
-    }
-
-    private void goFullscreen() {
-        var bounds = javafx.stage.Screen.getPrimary().getBounds();
-        var stage = getPrimaryStage();
-
-        stage.setX(bounds.getMinX());
-        stage.setY(bounds.getMinY());
-        stage.setWidth(bounds.getWidth());
-        stage.setHeight(bounds.getHeight());
     }
 
     @Override
@@ -188,6 +157,8 @@ public class GardenDefenseApp extends GameApplication {
             protected void onActionBegin() {
                 if (state == State.MENU || state == State.GAME_OVER) {
                     startGame();
+                } else if (state == State.PAUSED) {
+                    resumeGame();
                 }
             }
         }, KeyCode.ENTER);
@@ -195,11 +166,22 @@ public class GardenDefenseApp extends GameApplication {
         getInput().addAction(new UserAction("Menu") {
             @Override
             protected void onActionBegin() {
-                if (state == State.GAME_OVER) {
-                    showMenu();
-                }
+                if (state == State.GAME_OVER) showMenu();
+                else togglePause();
             }
         }, KeyCode.M);
+
+        getInput().addAction(new UserAction("Pausar ou continuar") {
+            @Override
+            protected void onActionBegin() {
+                togglePause();
+            }
+        }, KeyCode.ESCAPE);
+
+        getInput().addAction(new UserAction("Pausa rápida") {
+            @Override
+            protected void onActionBegin() { togglePause(); }
+        }, KeyCode.P);
 
         getInput().addAction(new UserAction("Energia de teste") {
             @Override
@@ -223,11 +205,6 @@ public class GardenDefenseApp extends GameApplication {
         double mx = getInput().getMouseXUI();
         double my = getInput().getMouseYUI();
 
-        if (state == State.MENU || state == State.GAME_OVER) {
-            startGame();
-            return;
-        }
-
         if (state != State.PLAYING) {
             return;
         }
@@ -249,6 +226,7 @@ public class GardenDefenseApp extends GameApplication {
 
             if (dx * dx + dy * dy <= 42 * 42) {
                 sun += SUN_AMOUNT;
+                play("sun-pick.wav");
                 removeSun(s);
                 updateInterface();
                 return true;
@@ -258,6 +236,9 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private void tryPlant(double mx, double my) {
+        var ground = BoardProjection.world(mx, my);
+        mx = ground.getX();
+        my = ground.getY();
         int col = (int) Math.floor((mx - GRID_X) / CELL_W);
         int row = (int) Math.floor((my - GRID_Y) / CELL_H);
 
@@ -271,25 +252,52 @@ public class GardenDefenseApp extends GameApplication {
 
         sun -= PLANT_COST;
         plantAt(row, col);
+        play("seed-plant.wav");
         updateInterface();
     }
 
     private void showMenu() {
+        if (gardenTransition != null) gardenTransition.cancel();
+        ui.root.setDisable(false);
         state = State.MENU;
         clearWorld();
 
-        statusText.setVisible(false);
-        controlsText.setVisible(false);
-        gameOverText.setVisible(false);
         hoverHighlight.setVisible(false);
+        drawLawn();
+        ui.showMenu();
+    }
 
-        menuTitle.setVisible(true);
-        menuSubtitle.setVisible(true);
-        menuControls.setVisible(true);
-        menuHint.setVisible(true);
+    private void togglePause() {
+        if (state == State.PLAYING) pauseGame();
+        else if (state == State.PAUSED) resumeGame();
+    }
+
+    private void pauseGame() {
+        if (state != State.PLAYING) return;
+        state = State.PAUSED;
+        hoverHighlight.setVisible(false);
+        ui.showPause();
+    }
+
+    private void resumeGame() {
+        if (state != State.PAUSED) return;
+        ui.hidePause();
+        state = State.PLAYING;
     }
 
     private void startGame() {
+        if (ui == null || (state != State.MENU && state != State.GAME_OVER)) return;
+        state = State.ENTERING_GARDEN;
+        hoverHighlight.setVisible(false);
+        ui.root.setDisable(true);
+        gardenTransition.play(this::prepareGame, () -> {
+            ui.root.setDisable(false);
+            state = State.PLAYING;
+            if (!getPrimaryStage().isFocused()) pauseGame();
+        });
+    }
+
+    private void prepareGame() {
         clearWorld();
 
         sun = 150;
@@ -307,36 +315,17 @@ public class GardenDefenseApp extends GameApplication {
             }
         }
 
-        menuTitle.setVisible(false);
-        menuSubtitle.setVisible(false);
-        menuControls.setVisible(false);
-        menuHint.setVisible(false);
-        gameOverText.setVisible(false);
-
-        statusText.setVisible(true);
-        controlsText.setVisible(true);
+        ui.showGame();
 
         drawLawn();
-        state = State.PLAYING;
         updateInterface();
     }
 
     private void drawLawn() {
-        for (int row = 0; row < ROWS; row++) {
-            for (int col = 0; col < COLS; col++) {
-                double x = GRID_X + col * CELL_W;
-                double y = GRID_Y + row * CELL_H;
-
-                Color grass = (row + col) % 2 == 0
-                        ? Color.rgb(105, 190, 75)
-                        : Color.rgb(90, 175, 65);
-
-                entityBuilder()
-                        .at(x, y)
-                        .view(new Rectangle(CELL_W - 2, CELL_H - 2, grass))
-                        .buildAndAttach();
-            }
-        }
+        entityBuilder()
+                .view(new LawnView(false))
+                .zIndex(-100)
+                .buildAndAttach();
     }
 
     private void clearWorld() {
@@ -361,20 +350,31 @@ public class GardenDefenseApp extends GameApplication {
 
         Entity plant = entityBuilder()
                 .at(x, y)
+                .view(groundShadow(PLANT_W, PLANT_H))
                 .view(texture("PeaShooter.png", PLANT_W, PLANT_H))
                 .buildAndAttach();
 
         plantGrid[row][col] = new Plant(plant, row, col);
         hasPlant[row][col] = true;
+        BoardProjection.place(plant, PLANT_W, PLANT_H, row, 0);
+    }
+
+    private javafx.scene.shape.Ellipse groundShadow(double width, double height) {
+        var shadow = new javafx.scene.shape.Ellipse(width / 2 + 5, height - 3, width * 0.48, 7);
+        shadow.setFill(Color.rgb(34, 49, 24, 0.24));
+        shadow.setMouseTransparent(true);
+        return shadow;
     }
 
     @Override
     protected void onUpdate(double tpf) {
+        if (ui == null) return;
         if (state != State.PLAYING) {
             return;
         }
 
         elapsed += tpf;
+        updateInterface();
 
         updateHover();
 
@@ -393,6 +393,7 @@ public class GardenDefenseApp extends GameApplication {
         updatePlants(tpf);
         updateBullets(tpf);
         updateZombies(tpf);
+        if (state != State.PLAYING) return;
         updateSuns(tpf);
         checkBulletHits();
     }
@@ -410,30 +411,18 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private void updateHover() {
-        double mx = getInput().getMouseXUI();
-        double my = getInput().getMouseYUI();
-
-        int col = (int) Math.floor((mx - GRID_X) / CELL_W);
-        int row = (int) Math.floor((my - GRID_Y) / CELL_H);
-
+        var ground = BoardProjection.world(getInput().getMouseXUI(), getInput().getMouseYUI());
+        int col = (int) Math.floor((ground.getX() - GRID_X) / CELL_W);
+        int row = (int) Math.floor((ground.getY() - GRID_Y) / CELL_H);
         if (row < 0 || row >= ROWS || col < 0 || col >= COLS) {
             hoverHighlight.setVisible(false);
             return;
         }
-
-        double x = GRID_X + col * CELL_W + 1;
-        double y = GRID_Y + row * CELL_H + 1;
-        hoverHighlight.setX(x);
-        hoverHighlight.setY(y);
+        BoardProjection.cell(hoverHighlight, row, col);
+        boolean available = !hasPlant[row][col] && sun >= PLANT_COST;
+        hoverHighlight.setStroke(Color.web(available ? "#f2e59b" : "#b86d4e"));
+        hoverHighlight.setFill(Color.web(available ? "#f2e59b30" : "#b86d4e25"));
         hoverHighlight.setVisible(true);
-
-        if (!hasPlant[row][col] && sun >= PLANT_COST) {
-            hoverHighlight.setStroke(Color.YELLOW);
-            hoverHighlight.setFill(Color.rgb(255, 255, 120, 0.3));
-        } else {
-            hoverHighlight.setStroke(Color.RED);
-            hoverHighlight.setFill(Color.rgb(255, 80, 80, 0.3));
-        }
     }
 
     private void updatePlants(double tpf) {
@@ -473,11 +462,13 @@ public class GardenDefenseApp extends GameApplication {
                 .buildAndAttach();
 
         bullets.add(new Bullet(bullet, plant.row));
+        BoardProjection.place(bullet, 16, 16, plant.row, 32);
     }
 
     private void updateBullets(double tpf) {
         for (Bullet bullet : new ArrayList<>(bullets)) {
             bullet.entity.setX(bullet.entity.getX() + 300 * tpf);
+            BoardProjection.place(bullet.entity, 16, 16, bullet.row, 32);
             if (bullet.entity.getX() > WIDTH) {
                 removeBullet(bullet);
             }
@@ -495,6 +486,7 @@ public class GardenDefenseApp extends GameApplication {
                 .buildAndAttach();
 
         zombies.add(new Zombie(zombieEntity, row, zombieHp(), zombieSpeed()));
+        BoardProjection.place(zombieEntity, ZOMBIE_W, ZOMBIE_H, row, 0);
     }
 
     private void updateZombies(double tpf) {
@@ -511,6 +503,7 @@ public class GardenDefenseApp extends GameApplication {
                 e.setX(e.getX() - zombie.speed * tpf);
             }
 
+            BoardProjection.place(e, ZOMBIE_W, ZOMBIE_H, zombie.row, 0);
             if (e.getX() < GRID_X - 20) {
                 lives--;
                 removeZombie(zombie);
@@ -554,7 +547,10 @@ public class GardenDefenseApp extends GameApplication {
     private void spawnSun() {
         double x = GRID_X + random.nextDouble() * (COLS * CELL_W - 40);
         double y = -10;
-        double targetY = GRID_Y + random.nextDouble() * (ROWS * CELL_H - 50);
+        double groundY = GRID_Y + random.nextDouble() * (ROWS * CELL_H - 50);
+        var landing = BoardProjection.screen(x + 27, groundY + 27);
+        x = landing.getX() - 27;
+        double targetY = landing.getY() - 27;
 
         Entity sunEntity = entityBuilder()
                 .at(x, y)
@@ -626,26 +622,14 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private void updateInterface() {
-        statusText.setText(
-                "Energia: " + sun
-                + "    Pontuação: " + score
-                + "    Vidas: " + lives
-                + "    Tempo: " + (int) elapsed + "s"
-        );
+        ui.update(sun, score, lives, elapsed);
     }
 
     private void endGame() {
         state = State.GAME_OVER;
         hoverHighlight.setVisible(false);
 
-        gameOverText.setText(
-                "FIM DO JOGO!\n"
-                + "Pontuação: " + score + "\n"
-                + "ENTER: jogar outra vez   |   M: menu"
-        );
-        gameOverText.setX(310);
-        gameOverText.setY(250);
-        gameOverText.setVisible(true);
+        ui.showResult(score);
     }
 
     public static void main(String[] args) {
