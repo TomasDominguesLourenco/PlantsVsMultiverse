@@ -5,7 +5,11 @@ import javafx.geometry.Point2D;
 import javafx.scene.shape.Polygon;
 import javafx.scene.transform.Affine;
 
-/** Ground-plane perspective; combat continues to use the original logical grid. */
+/**
+ * Projeção partilhada pelo cenário e pela interação com o jardim.
+ * screen() desenha o chão em perspetiva; world() inverte a mesma projeção
+ * para os cliques, mantendo o combate na grelha lógica original de 5 × 9.
+ */
 final class BoardProjection {
     private BoardProjection() {}
 

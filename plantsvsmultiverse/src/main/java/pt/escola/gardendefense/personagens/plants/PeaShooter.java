@@ -6,6 +6,9 @@ package pt.escola.gardendefense.personagens.plants;
 public class PeaShooter extends Planta {
 
     @Override
+    public int getOrdemNaBarra() { return 0; }
+
+    @Override
     public String getNome() {
         return "PeaShooter";
     }

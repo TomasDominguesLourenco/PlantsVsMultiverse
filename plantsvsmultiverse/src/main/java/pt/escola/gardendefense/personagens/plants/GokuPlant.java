@@ -11,6 +11,9 @@ import javafx.scene.shape.Circle;
 import java.util.Objects;
 
 public final class GokuPlant extends Planta {
+    @Override
+    public int getOrdemNaBarra() { return 10; }
+
     private static final String IDLE = "GokuPlantIdle.png";
     private static final int FRAME_WIDTH = 224;
     private static final int FRAME_HEIGHT = 304;

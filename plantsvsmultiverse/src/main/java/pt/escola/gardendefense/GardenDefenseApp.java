@@ -10,8 +10,7 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Polygon;
 
-import pt.escola.gardendefense.personagens.plants.GokuPlant;
-import pt.escola.gardendefense.personagens.plants.PeaShooter;
+import pt.escola.gardendefense.personagens.plants.CatalogoPlantas;
 import pt.escola.gardendefense.personagens.plants.Planta;
 import pt.escola.gardendefense.personagens.plants.SpriteSheetView;
 import pt.escola.gardendefense.personagens.zombies.ZombieNormal;
@@ -39,8 +38,8 @@ public class GardenDefenseApp extends GameApplication {
     private static final int SUN_AMOUNT = 25;
     private static final int PROJECTILE_SIZE = 16;
 
-    private final Planta plantaPadrao = new PeaShooter();
-    private final Planta gokuPlant = new GokuPlant();
+    private final List<Planta> plantas = CatalogoPlantas.carregar();
+    private final Planta plantaPadrao = plantas.getFirst();
     private Planta plantaSelecionada = plantaPadrao;
     private final ZombieNormal zombiePadrao = new ZombieNormal();
 
@@ -156,13 +155,15 @@ public class GardenDefenseApp extends GameApplication {
         hoverHighlight.setStrokeWidth(2);
         hoverHighlight.setVisible(false);
         getGameScene().addUINode(hoverHighlight);
-        ui = new GardenUI(plantaPadrao, this::startGame, this::showMenu, this::togglePause,
+        ui = new GardenUI(plantas, plant -> {
+            if (state == State.PLAYING) selectPlant(plant);
+        }, this::startGame, this::showMenu, this::togglePause,
                 () -> javafx.application.Platform.exit());
         getGameScene().addUINode(ui.root);
         gardenTransition = new GardenTransition(getGameScene().getContentRoot());
         getPrimaryStage().setFullScreenExitKeyCombination(javafx.scene.input.KeyCombination.NO_MATCH);
         getPrimaryStage().setFullScreenExitHint("");
-        getPrimaryStage().focusedProperty().addListener((observable, wasFocused, focused) -> {
+        getPrimaryStage().focusedProperty().addListener((_, _, focused) -> {
             if (!focused && state == State.PLAYING) pauseGame();
         });
 
@@ -212,8 +213,12 @@ public class GardenDefenseApp extends GameApplication {
             }
         }, KeyCode.C);
 
-        bindPlantSelection(plantaPadrao, KeyCode.DIGIT1);
-        bindPlantSelection(gokuPlant, KeyCode.DIGIT2);
+        KeyCode[] atalhos = { KeyCode.DIGIT1, KeyCode.DIGIT2, KeyCode.DIGIT3,
+                KeyCode.DIGIT4, KeyCode.DIGIT5, KeyCode.DIGIT6,
+                KeyCode.DIGIT7, KeyCode.DIGIT8, KeyCode.DIGIT9 };
+        for (int i = 0; i < Math.min(plantas.size(), atalhos.length); i++) {
+            bindPlantSelection(plantas.get(i), atalhos[i]);
+        }
 
         getInput().addAction(new UserAction("Clique") {
             @Override
@@ -224,7 +229,7 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private void bindPlantSelection(Planta plant, KeyCode key) {
-        getInput().addAction(new UserAction("Selecionar " + plant.getNome()) {
+        getInput().addAction(new UserAction("Selecionar " + plant.getClass().getName()) {
             @Override
             protected void onActionBegin() {
                 if (state == State.PLAYING) {
@@ -235,9 +240,9 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private void selectPlant(Planta plant) {
+        if (!plantas.contains(plant)) return;
         plantaSelecionada = plant;
-        String name = plant == plantaPadrao ? "Ervilhadora" : plant.getNome();
-        ui.showSelectedPlant(name, plant.getCustoSol());
+        ui.showSelectedPlant(plant);
     }
 
     private void handleClick() {
@@ -247,6 +252,9 @@ public class GardenDefenseApp extends GameApplication {
         if (state != State.PLAYING) {
             return;
         }
+
+        // Seed-tray clicks select a template; they must not collect a sun behind the HUD.
+        if (my < 100) return;
 
         if (tryCollectSun(mx, my)) {
             return;

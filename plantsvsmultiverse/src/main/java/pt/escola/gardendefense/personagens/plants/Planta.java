@@ -6,9 +6,22 @@ import pt.escola.gardendefense.personagens.Personagem;
 import static com.almasb.fxgl.dsl.FXGL.texture;
 
 /**
- * Tipo base de todas as plantas: define custo, dano e cadência de tiro.
+ * Molde de planta: define imagem, custo, vida, dano e cadência de tiro.
+ * Cria uma classe pública neste pacote (ou num subpacote), com construtor público
+ * sem argumentos. Depois de compilar e reiniciar, CatalogoPlantas coloca-a na barra
+ * automaticamente; não é necessário alterar a aplicação nem a interface.
  */
 public abstract class Planta implements Personagem {
+
+    /** Ordem do cartão no catálogo; valores menores aparecem primeiro. */
+    public int getOrdemNaBarra() {
+        return 100;
+    }
+
+    /** Vista independente para o cartão; spritesheets mostram o primeiro fotograma. */
+    public Node criarIcone() {
+        return criarVista();
+    }
 
     public Node criarVista() {
         return texture(getTextura(), getLargura(), getAltura());

@@ -23,7 +23,7 @@ final class GardenTransition {
                 new KeyFrame(Duration.ZERO,
                         new KeyValue(scene.opacityProperty(), 1),
                         new KeyValue(camera.xProperty(), 1), new KeyValue(camera.yProperty(), 1)),
-                new KeyFrame(Duration.millis(260), event -> changeScene.run(),
+                new KeyFrame(Duration.millis(260), _ -> changeScene.run(),
                         new KeyValue(scene.opacityProperty(), 0, Interpolator.EASE_IN),
                         new KeyValue(camera.xProperty(), .91, Interpolator.EASE_IN),
                         new KeyValue(camera.yProperty(), .91, Interpolator.EASE_IN)),
@@ -38,7 +38,7 @@ final class GardenTransition {
                         new KeyValue(scene.opacityProperty(), 1),
                         new KeyValue(camera.xProperty(), 1, Interpolator.EASE_BOTH),
                         new KeyValue(camera.yProperty(), 1, Interpolator.EASE_BOTH)));
-        animation.setOnFinished(event -> {
+        animation.setOnFinished(_ -> {
             reset();
             animation = null;
             finished.run();

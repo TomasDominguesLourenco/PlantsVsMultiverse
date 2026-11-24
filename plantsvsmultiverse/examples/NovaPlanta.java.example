@@ -1,0 +1,23 @@
+// MOLDE: copia este ficheiro para src/main/java/pt/escola/gardendefense/
+// personagens/plants/NovaPlanta.java (retira a extensão .example).
+// Compila e reinicia o jogo: o novo cartão aparece automaticamente.
+// Não é preciso editar GardenDefenseApp nem GardenUI.
+package pt.escola.gardendefense.personagens.plants;
+
+// Herdar de PeaShooter permite começar com os valores de uma planta funcional.
+// Para um comportamento totalmente próprio, herda de Planta e implementa os seus métodos.
+public class NovaPlanta extends PeaShooter {
+    @Override public String getNome() { return "Nova Planta"; }
+    @Override public String getTextura() { return "PeaShooter.png"; } // Imagem em assets/textures.
+    @Override public int getCustoSol() { return 75; }
+    @Override public int getVidaMax() { return 150; }
+    @Override public int getDano() { return 2; }
+    @Override public double getIntervaloTiro() { return 1.5; }
+    @Override public double getVelocidadeProjetil() { return 300; }
+    @Override public int getOrdemNaBarra() { return 20; } // Menor = mais à esquerda.
+
+    // Opcional: sobrescreve criarVista() para animar a planta.
+    // criarIcone() reutiliza a vista inicial; podes sobrescrevê-lo para um ícone próprio.
+    // Cada chamada deve devolver um Node novo, nunca um Node partilhado.
+    // Mantém a classe pública com construtor público sem argumentos (o implícito serve).
+}

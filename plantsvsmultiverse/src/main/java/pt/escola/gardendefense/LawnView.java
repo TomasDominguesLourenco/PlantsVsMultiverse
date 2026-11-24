@@ -167,14 +167,6 @@ final class LawnView extends Canvas {
         g.fillOval(x + 55 * s, y + 9 * s, 39 * s, 28 * s);
     }
 
-    private void window(double x, double y, double w, double h) {
-        outlined("#7e6b49", "#5c543a", 2, x, y + 4, x + w, y - 4, x + w - 2, y + h, x, y + h + 7);
-        shape("#8bafb0", x + 5, y + 9, x + w - 5, y + 2, x + w - 7, y + h - 6, x + 5, y + h);
-        line(x + 9, y + 13, x + w - 11, y + 6, "#c6d9c6", 3);
-        line(x + w / 2, y + 6, x + w / 2 - 1, y + h, "#eadbb1", 4);
-        line(x + 5, y + h / 2, x + w - 5, y + h / 2 - 4, "#eadbb1", 4);
-    }
-
     private void bush(double x, double y, double r) {
         oval(x - r, y - r * .6, r * 1.3, r, "#476a39");
         oval(x - r * .3, y - r, r * 1.3, r * 1.1, "#597f40");

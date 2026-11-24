@@ -9,10 +9,15 @@ import javafx.scene.Group;
 import javafx.scene.AccessibleRole;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Slider;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tooltip;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.ImageView;
+import javafx.scene.Node;
+import javafx.scene.layout.HBox;
+import javafx.geometry.Insets;
+import javafx.scene.transform.Affine;
 import javafx.scene.input.KeyCode;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -23,6 +28,9 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 import pt.escola.gardendefense.personagens.plants.Planta;
 
 import static com.almasb.fxgl.dsl.FXGL.texture;
@@ -48,30 +56,20 @@ final class GardenUI {
     private final Text clock = label("00:00", 728, 64, 11, "#d3c69d", false);
     private final Text resultScore = label("", 387, 282, 23, "#3e4939", true);
     private final Planta plantaPadrao;
-    private final Text selectedPlant = label("", 375, 65, 13, "#f5ebc6", true);
-    private final Rectangle seed;
+    private final List<SeedCard> seedCards = new ArrayList<>();
+    private final ScrollPane seedTray = new ScrollPane();
+    private Planta selectedPlant;
     private ParallelTransition entrance;
     private int lastSun = -1, lastScore = -1, lastLives = -1, lastSecond = -1;
 
-    GardenUI(Planta plantaPadrao, Runnable play, Runnable home, Runnable togglePause, Runnable quit) {
-        this.plantaPadrao = plantaPadrao;
+    GardenUI(List<Planta> plantas, Consumer<Planta> selectPlant,
+             Runnable play, Runnable home, Runnable togglePause, Runnable quit) {
+        this.plantaPadrao = plantas.getFirst();
         root.getStylesheets().add(java.util.Objects.requireNonNull(
                 GardenUI.class.getResource("/assets/ui/garden.css")).toExternalForm());
         root.getChildren().addAll(hud, menu, result, pause);
         buildHud(togglePause);
-        seed = new Rectangle(195, 20, 136, 63);
-        seed.setArcWidth(4); seed.setArcHeight(4);
-        seed.setStroke(Color.web("#3d4a2b")); seed.setStrokeWidth(2);
-        seed.setFill(Color.web("#e9dba6"));
-        var pea = texture(plantaPadrao.getTextura(), 39, 45);
-        pea.setTranslateX(204); pea.setTranslateY(30);
-        hud.getChildren().addAll(seed, pea,
-                label("ERVILHADORA", 249, 38, 9, "#526236", true),
-                label(Integer.toString(plantaPadrao.getCustoSol()), 271, 68, 20, "#384b27", true),
-                label("SOL", 299, 65, 9, "#526236", true));
-        hud.getChildren().addAll(
-                label("1  Ervilhadora   ·   2  Goku Planta", 375, 40, 13, "#f5ebc6", true),
-                selectedPlant);
+        buildSeedTray(plantas, selectPlant);
 
         menu.getChildren().add(new LawnView(true));
         Canvas props = new Canvas(1000, 600);
@@ -128,17 +126,109 @@ final class GardenUI {
         hud.setVisible(false); result.setVisible(false); help.setVisible(false); pause.setVisible(false);
     }
 
-    void showSelectedPlant(String name, int cost) {
-        selectedPlant.setText("Selecionada  ·  " + name + "  ·  " + cost + " sol");
+    void showSelectedPlant(Planta plant) {
+        selectedPlant = plant;
+        for (SeedCard card : seedCards) card.update(lastSun);
+        int index = seedCards.stream().map(card -> card.plant).toList().indexOf(plant);
+        double overflow = seedTray.getContent().getLayoutBounds().getWidth() - seedTray.getViewportBounds().getWidth();
+        if (index >= 0 && overflow > 0) {
+            double left = seedTray.getHvalue() * overflow;
+            double target = seedCards.get(index).node.getBoundsInParent().getMinX();
+            double right = seedCards.get(index).node.getBoundsInParent().getMaxX();
+            if (target < left) seedTray.setHvalue(Math.max(0, target / overflow));
+            else if (right > left + seedTray.getViewportBounds().getWidth()) {
+                seedTray.setHvalue(Math.min(1, (right - seedTray.getViewportBounds().getWidth()) / overflow));
+            }
+        }
+    }
+
+    private void buildSeedTray(List<Planta> plantas, Consumer<Planta> selectPlant) {
+        HBox cards = new HBox(8);
+        cards.setPadding(new Insets(3)); cards.setFillHeight(false);
+        for (int i = 0; i < plantas.size(); i++) {
+            SeedCard card = new SeedCard(plantas.get(i), i, selectPlant);
+            seedCards.add(card); cards.getChildren().add(card.node);
+        }
+        seedTray.setContent(cards);
+        seedTray.setLayoutX(190); seedTray.setLayoutY(9); seedTray.setPrefSize(506, 89);
+        seedTray.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        seedTray.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        seedTray.setPannable(true);
+        seedTray.getStyleClass().add("seed-tray");
+        seedTray.setOnScroll(event -> {
+            double overflow = cards.getWidth() - seedTray.getViewportBounds().getWidth();
+            if (overflow > 0) {
+                double delta = event.getDeltaX() != 0 ? event.getDeltaX() : event.getDeltaY();
+                seedTray.setHvalue(Math.max(0, Math.min(1, seedTray.getHvalue() - delta / overflow)));
+                event.consume();
+            }
+        });
+        hud.getChildren().add(seedTray);
+    }
+
+    private final class SeedCard {
+        final Planta plant;
+        final Group node = new Group();
+        final Rectangle backing = new Rectangle(112, 68);
+        final Text price;
+        final Group icon;
+
+        SeedCard(Planta plant, int index, Consumer<Planta> selectPlant) {
+            this.plant = plant;
+            backing.setArcWidth(7); backing.setArcHeight(7);
+            Text name = label(plant.getNome(), 49, 23, 10, "#465832", true);
+            name.setWrappingWidth(59);
+            price = label(Integer.toString(plant.getCustoSol()), 50, 59, 18, "#384b27", true);
+            int priceSize = 18;
+            while (price.getLayoutBounds().getWidth() > 36 && priceSize > 10) {
+                price.setFont(Font.font("Trebuchet MS", FontWeight.BOLD, --priceSize));
+            }
+            // Use the template's own view, not a stretched image of its sprite sheet.
+            Node preview = plant.criarIcone();
+            var bounds = preview.getLayoutBounds();
+            double scale = Math.min(38 / Math.max(1, bounds.getWidth()), 43 / Math.max(1, bounds.getHeight()));
+            icon = new Group(preview);
+            icon.getTransforms().add(new Affine(scale, 0, 7 + (38 - bounds.getWidth() * scale) / 2 - bounds.getMinX() * scale,
+                    0, scale, 17 + (43 - bounds.getHeight() * scale) / 2 - bounds.getMinY() * scale));
+            icon.setMouseTransparent(true);
+            node.getChildren().addAll(backing, icon, name, price,
+                    label("SOL", 91, 58, 8, "#64744b", true),
+                    label(index < 9 ? Integer.toString(index + 1) : "", 8, 13, 10, "#64744b", true));
+            node.setCursor(Cursor.HAND); node.setFocusTraversable(true);
+            node.setAccessibleRole(AccessibleRole.BUTTON);
+            node.setAccessibleText(plant.getNome() + ", " + plant.getCustoSol() + " sol");
+            Tooltip.install(node, new Tooltip(plant.getNome() + "\n" + plant.getCustoSol()
+                    + " sol · " + plant.getVidaMax() + " de vida"));
+            node.setOnMouseClicked(event -> {
+                if (event.isStillSincePress()) { play("ui-tap.wav"); selectPlant.accept(plant); }
+                event.consume();
+            });
+            node.setOnKeyPressed(event -> {
+                if (event.getCode() == KeyCode.SPACE || event.getCode() == KeyCode.ENTER) {
+                    play("ui-tap.wav"); selectPlant.accept(plant); event.consume();
+                }
+            });
+            update(150);
+        }
+
+        void update(int sun) {
+            boolean selected = plant == selectedPlant;
+            boolean affordable = sun >= plant.getCustoSol();
+            backing.setFill(Color.web(affordable ? "#e9dba6" : "#b3ac8b"));
+            backing.setStroke(Color.web(selected ? "#f7dd78" : "#53613a"));
+            backing.setStrokeWidth(selected ? 3 : 1.5);
+            price.setFill(Color.web(affordable ? "#384b27" : "#8e4835"));
+            icon.setOpacity(affordable ? 1 : .55);
+        }
     }
 
     private void buildHud(Runnable togglePause) {
         Canvas tray = new Canvas(1000, 94);
         var g = tray.getGraphicsContext2D();
-        fill(g, "#4c3d28", 22, 15, 354, 14, 360, 87, 28, 91);
-        fill(g, "#8c6b40", 26, 18, 349, 18, 354, 81, 29, 85);
-        stroke(g, "#b39056", 2, 31, 23, 343, 23);
-        stroke(g, "#614c30", 2, 33, 76, 345, 72);
+        fill(g, "#4c3d28", 22, 15, 696, 14, 700, 87, 28, 91);
+        fill(g, "#8c6b40", 26, 18, 690, 18, 694, 81, 29, 85);
+        stroke(g, "#b39056", 2, 31, 23, 685, 23);
+        stroke(g, "#614c30", 2, 33, 76, 686, 72);
         fill(g, "#3e422b", 38, 26, 179, 25, 177, 76, 39, 79);
         fill(g, "#735a37", 713, 15, 971, 19, 975, 80, 710, 80);
         stroke(g, "#a78a55", 2, 719, 20, 963, 24);
@@ -175,9 +265,9 @@ final class GardenUI {
         muted.setLayoutX(321); muted.setLayoutY(334);
         fullScreen.setLayoutX(522); fullScreen.setLayoutY(334);
         fullScreen.setSelected(getPrimaryStage().isFullScreen());
-        fullScreen.selectedProperty().addListener((observable, oldValue, value) -> getPrimaryStage().setFullScreen(value));
-        getPrimaryStage().fullScreenProperty().addListener((observable, oldValue, value) -> fullScreen.setSelected(value));
-        muted.selectedProperty().addListener((observable, oldValue, value) -> applyAudio());
+        fullScreen.selectedProperty().addListener((_, _, value) -> getPrimaryStage().setFullScreen(value));
+        getPrimaryStage().fullScreenProperty().addListener((_, _, value) -> fullScreen.setSelected(value));
+        muted.selectedProperty().addListener(_ -> applyAudio());
         musicVolume.disableProperty().bind(muted.selectedProperty());
         soundVolume.disableProperty().bind(muted.selectedProperty());
         pause.getChildren().addAll(muted, fullScreen,
@@ -193,8 +283,8 @@ final class GardenUI {
         slider.setLayoutX(412); slider.setLayoutY(baseline - 19); slider.setPrefWidth(223);
         slider.setBlockIncrement(5); slider.setAccessibleText("Volume de " + caption.toLowerCase());
         slider.setTooltip(new Tooltip("Volume de " + caption.toLowerCase()));
-        slider.valueProperty().addListener((observable, oldValue, value) -> applyAudio());
-        if (slider == soundVolume) slider.setOnMouseReleased(event -> play("ui-tap.wav"));
+        slider.valueProperty().addListener(_ -> applyAudio());
+        if (slider == soundVolume) slider.setOnMouseReleased(_ -> play("ui-tap.wav"));
         pause.getChildren().addAll(label(caption, 323, baseline, 16, "#465638", true), slider, percent);
     }
 
@@ -208,7 +298,7 @@ final class GardenUI {
         paper.setFill(Color.web("#e9dfaf")); paper.setStroke(Color.web("#75663e")); paper.setStrokeWidth(3);
         help.getChildren().addAll(paper,
                 label("COMO JOGAR", 269, 314, 25, "#40552e", true),
-                label("1. Clica na relva para plantar.\n    Cada ervilhadora custa " + plantaPadrao.getCustoSol() + " sol.\n\n2. Apanha os sóis: valem 25.\n\n3. Protege a casa dos zombies!", 269, 346, 14, "#4b5837", false),
+                label("1. Escolhe um cartão de planta em cima.\n    Clica na relva para plantar.\n\n2. Apanha os sóis: valem 25.\n\n3. Protege a casa dos zombies!", 269, 346, 14, "#4b5837", false),
                 label("Clica novamente na placa para fechar.", 267, 462, 11, "#7a7952", false));
     }
 
@@ -230,7 +320,8 @@ final class GardenUI {
     void update(int sun, int score, int lives, double seconds) {
         if (sun != lastSun) {
             energy.setText(Integer.toString(sun));
-            seed.setFill(Color.web(sun >= plantaPadrao.getCustoSol() ? "#e9dba6" : "#aaa58b")); lastSun = sun;
+            for (SeedCard card : seedCards) card.update(sun);
+            lastSun = sun;
         }
         if (score != lastScore) { points.setText(String.format("%04d", score)); lastScore = score; }
         if (lives != lastLives) {
@@ -271,10 +362,10 @@ final class GardenUI {
         group.setTranslateX(x); group.setTranslateY(y); group.setRotate(angle); group.setCursor(Cursor.HAND);
         TranslateTransition hover = new TranslateTransition(Duration.millis(120), group);
         hover.setInterpolator(Interpolator.EASE_OUT);
-        group.setOnMouseEntered(e -> { hover.stop(); hover.setToY(y - 3); hover.play(); text.setFill(Color.web("#fff4c4")); });
-        group.setOnMouseExited(e -> { hover.stop(); hover.setToY(y); hover.play(); text.setFill(Color.web(primary ? "#fff1c5" : "#40331f")); group.setScaleX(1); group.setScaleY(1); });
-        group.setOnMousePressed(e -> { group.setScaleX(.985); group.setScaleY(.985); });
-        group.setOnMouseReleased(e -> { group.setScaleX(1); group.setScaleY(1); });
+        group.setOnMouseEntered(_ -> { hover.stop(); hover.setToY(y - 3); hover.play(); text.setFill(Color.web("#fff4c4")); });
+        group.setOnMouseExited(_ -> { hover.stop(); hover.setToY(y); hover.play(); text.setFill(Color.web(primary ? "#fff1c5" : "#40331f")); group.setScaleX(1); group.setScaleY(1); });
+        group.setOnMousePressed(_ -> { group.setScaleX(.985); group.setScaleY(.985); });
+        group.setOnMouseReleased(_ -> { group.setScaleX(1); group.setScaleY(1); });
         group.setOnMouseClicked(e -> { play("ui-tap.wav"); action.run(); e.consume(); });
         group.setOnKeyPressed(e -> { if (e.getCode() == KeyCode.SPACE) { play("ui-tap.wav"); action.run(); e.consume(); } });
         return group;
