@@ -1,9 +1,17 @@
 package pt.escola.gardendefense.personagens.plants;
 
+import javafx.scene.Node;
+
 /**
  * Planta básica que atira ervilhas numa linha.
  */
 public class PeaShooter extends Planta {
+
+    @Override
+    public Node criarVista() {
+        // Custom templates inheriting PeaShooter can still supply their own texture.
+        return "PeaShooterParts.png".equals(getTextura()) ? new PeaShooterView() : super.criarVista();
+    }
 
     @Override
     public int getOrdemNaBarra() { return 0; }
@@ -20,17 +28,17 @@ public class PeaShooter extends Planta {
 
     @Override
     public String getTextura() {
-        return "PeaShooter.png";
+        return "PeaShooterParts.png";
     }
 
     @Override
     public double getLargura() {
-        return 52;
+        return 88;
     }
 
     @Override
     public double getAltura() {
-        return 58;
+        return 88;
     }
 
     @Override

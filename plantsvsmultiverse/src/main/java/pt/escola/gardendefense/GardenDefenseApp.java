@@ -75,6 +75,7 @@ public class GardenDefenseApp extends GameApplication {
         Zombie attackTarget;
         double impactTimer;
         double shotWindup = -1;
+        boolean preparingShot;
 
         Plant(Planta definicao, Entity entity, int row, int col, VistaAnimada animation) {
             this.definicao = definicao;
@@ -112,12 +113,14 @@ public class GardenDefenseApp extends GameApplication {
         final int dano;
         final double lift;
         final VistaAnimada animation;
+        double firstStep;
 
-        Bullet(Entity entity, int row, double speed, int dano, double lift, VistaAnimada animation) {
+        Bullet(Entity entity, int row, double speed, int dano, double lift, VistaAnimada animation, double firstStep) {
             this.speed = speed;
             this.dano = dano;
             this.lift = lift;
             this.animation = animation;
+            this.firstStep = firstStep;
             this.entity = entity;
             this.row = row;
         }
@@ -504,15 +507,23 @@ public class GardenDefenseApp extends GameApplication {
                 if (plant.shotWindup >= 0) {
                     plant.shotWindup -= tpf;
                     if (plant.shotWindup <= 0) {
+                        shoot(plant, Math.max(0, -plant.shotWindup));
                         plant.shotWindup = -1;
-                        shoot(plant);
                     }
                 }
-                if (plant.shotWindup < 0 && shootTimers[row][col] >= plant.definicao.getIntervaloTiro() && hasZombieInRow(row)) {
+                if (!plant.preparingShot && plant.shotWindup < 0 && shootTimers[row][col] >= plant.definicao.getIntervaloTiro() && hasZombieInRow(row)) {
                     shootTimers[row][col] = 0;
-                    if (plant.animation != null) plant.animation.atacar();
-                    if (plant.definicao.getAtrasoDisparo() > 0) plant.shotWindup = plant.definicao.getAtrasoDisparo();
-                    else shoot(plant);
+                    if (plant.animation != null && plant.animation.getMomentoDisparo() >= 0) {
+                        plant.preparingShot = true;
+                        plant.animation.atacar(age -> {
+                            plant.preparingShot = false;
+                            shoot(plant, age);
+                        });
+                    } else {
+                        if (plant.animation != null) plant.animation.atacar();
+                        if (plant.definicao.getAtrasoDisparo() > 0) plant.shotWindup = plant.definicao.getAtrasoDisparo();
+                        else shoot(plant, 0);
+                    }
                 }
             }
         }
@@ -565,9 +576,10 @@ public class GardenDefenseApp extends GameApplication {
         return false;
     }
 
-    private void shoot(Plant plant) {
+    private void shoot(Plant plant, double birthAge) {
         Entity e = plant.entity;
-        double x = e.getX() + plant.definicao.getSaidaProjetilX() - PROJECTILE_SIZE / 2.0;
+        var muzzle = plant.animation == null ? null : plant.animation.getSaidaProjetil();
+        double x = e.getX() + (muzzle == null ? plant.definicao.getSaidaProjetilX() : muzzle.getX()) - PROJECTILE_SIZE / 2.0;
         double y = GRID_Y + plant.row * CELL_H + CELL_H / 2 - PROJECTILE_SIZE / 2.0;
         var view = plant.definicao.criarVistaProjetil(PROJECTILE_SIZE);
 
@@ -576,16 +588,19 @@ public class GardenDefenseApp extends GameApplication {
                 .viewWithBBox(view)
                 .buildAndAttach();
 
-        double lift = plant.definicao.getAlturaProjetil();
+        double lift = muzzle == null ? plant.definicao.getAlturaProjetil()
+                : plant.definicao.getAltura() - muzzle.getY() - PROJECTILE_SIZE / 2.0;
         bullets.add(new Bullet(bullet, plant.row, plant.definicao.getVelocidadeProjetil(),
-                plant.definicao.getDano(), lift, view instanceof VistaAnimada animation ? animation : null));
+                plant.definicao.getDano(), lift, view instanceof VistaAnimada animation ? animation : null, birthAge));
         BoardProjection.place(bullet, PROJECTILE_SIZE, PROJECTILE_SIZE, plant.row, lift);
     }
 
     private void updateBullets(double tpf) {
         for (Bullet bullet : new ArrayList<>(bullets)) {
-            if (bullet.animation != null) bullet.animation.advance(tpf);
-            bullet.entity.setX(bullet.entity.getX() + bullet.speed * tpf);
+            double step = bullet.firstStep < 0 ? tpf : Math.min(tpf, bullet.firstStep);
+            bullet.firstStep = -1;
+            if (bullet.animation != null) bullet.animation.advance(step);
+            bullet.entity.setX(bullet.entity.getX() + bullet.speed * step);
             BoardProjection.place(bullet.entity, PROJECTILE_SIZE, PROJECTILE_SIZE, bullet.row, bullet.lift);
             if (bullet.entity.getX() > WIDTH) {
                 removeBullet(bullet);

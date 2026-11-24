@@ -2,6 +2,7 @@ package pt.escola.gardendefense.personagens.plants;
 
 import javafx.scene.Node;
 import javafx.scene.image.ImageView;
+import javafx.geometry.Point2D;
 
 public final class GokuPlant extends Planta {
     private GifPlantView.Frames idle;
@@ -18,7 +19,8 @@ public final class GokuPlant extends Planta {
 
     @Override public Node criarVista() {
         carregarAnimacoes();
-        return new GifPlantView(idle, attack, getLargura(), getAltura());
+        return new GifPlantView(idle, attack, getLargura(), getAltura(),
+                6, new Point2D(258.0 / 364, 196.0 / 363), true);
     }
 
     @Override public Node criarIcone() {
@@ -37,7 +39,10 @@ public final class GokuPlant extends Planta {
     @Override public int getDano() { return 8; }
     @Override public double getIntervaloTiro() { return 3.2; }
     @Override public double getVelocidadeProjetil() { return 350; }
-    @Override public double getAlturaProjetil() { return 32; }
-    @Override public double getSaidaProjetilX() { return getLargura() * .78; }
-    @Override public double getAtrasoDisparo() { return .4; }
+    @Override public double getAlturaProjetil() { return getAltura() * (1 - 196.0 / 363) - 8; }
+    @Override public double getSaidaProjetilX() { return getLargura() * 258.0 / 364; }
+    @Override public double getAtrasoDisparo() {
+        carregarAnimacoes();
+        return attack.tempoFotograma(6);
+    }
 }

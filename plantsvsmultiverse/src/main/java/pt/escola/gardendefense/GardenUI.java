@@ -108,7 +108,7 @@ final class GardenUI {
             double x = 330 + i * 84, y = 366 + i % 2 * 33;
             var shadow = new javafx.scene.shape.Ellipse(x + 31, y + 73, 30, 7);
             shadow.setFill(Color.web("#355c3040"));
-            var plant = texture(plantaPadrao.getTextura(), 62, 73);
+            var plant = plantPreview(plantaPadrao, 62, 73);
             plant.setTranslateX(x); plant.setTranslateY(y);
             menu.getChildren().addAll(shadow, plant);
         }
@@ -124,6 +124,17 @@ final class GardenUI {
                 plank("VOLTAR AO MENU", 342, 402, 318, 46, 1, false, home));
         buildPause(togglePause, home, quit);
         hud.setVisible(false); result.setVisible(false); help.setVisible(false); pause.setVisible(false);
+    }
+
+    private static Group plantPreview(Planta plant, double width, double height) {
+        Node preview = plant.criarIcone();
+        var bounds = preview.getLayoutBounds();
+        double scale = Math.min(width / Math.max(1, bounds.getWidth()), height / Math.max(1, bounds.getHeight()));
+        Group icon = new Group(preview);
+        icon.getTransforms().add(new Affine(scale, 0, (width - bounds.getWidth() * scale) / 2 - bounds.getMinX() * scale,
+                0, scale, height - bounds.getHeight() * scale - bounds.getMinY() * scale));
+        icon.setMouseTransparent(true);
+        return icon;
     }
 
     void showSelectedPlant(Planta plant) {
@@ -184,13 +195,8 @@ final class GardenUI {
                 price.setFont(Font.font("Trebuchet MS", FontWeight.BOLD, --priceSize));
             }
             // Use the template's own view, not a stretched image of its sprite sheet.
-            Node preview = plant.criarIcone();
-            var bounds = preview.getLayoutBounds();
-            double scale = Math.min(38 / Math.max(1, bounds.getWidth()), 43 / Math.max(1, bounds.getHeight()));
-            icon = new Group(preview);
-            icon.getTransforms().add(new Affine(scale, 0, 7 + (38 - bounds.getWidth() * scale) / 2 - bounds.getMinX() * scale,
-                    0, scale, 17 + (43 - bounds.getHeight() * scale) / 2 - bounds.getMinY() * scale));
-            icon.setMouseTransparent(true);
+            icon = plantPreview(plant, 38, 43);
+            icon.setTranslateX(7); icon.setTranslateY(17);
             node.getChildren().addAll(backing, icon, name, price,
                     label("SOL", 91, 58, 8, "#64744b", true),
                     label(index < 9 ? Integer.toString(index + 1) : "", 8, 13, 10, "#64744b", true));
