@@ -8,12 +8,14 @@ import com.almasb.fxgl.input.UserAction;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.paint.Color;
+import javafx.scene.Node;
 import javafx.scene.shape.Polygon;
 
 import pt.escola.gardendefense.personagens.plants.CatalogoPlantas;
 import pt.escola.gardendefense.personagens.plants.Planta;
 import pt.escola.gardendefense.personagens.plants.SpriteSheetView;
-import pt.escola.gardendefense.personagens.zombies.ZombieNormal;
+import pt.escola.gardendefense.personagens.zombies.CatalogoZombies;
+import pt.escola.gardendefense.personagens.zombies.Zombie;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +43,7 @@ public class GardenDefenseApp extends GameApplication {
     private final List<Planta> plantas = CatalogoPlantas.carregar();
     private final Planta plantaPadrao = plantas.getFirst();
     private Planta plantaSelecionada = plantaPadrao;
-    private final ZombieNormal zombiePadrao = new ZombieNormal();
+    private final List<Zombie> moldesZombies = CatalogoZombies.carregar();
 
     private State state = State.MENU;
 
@@ -54,7 +56,7 @@ public class GardenDefenseApp extends GameApplication {
     private final Plant[][] plantGrid = new Plant[ROWS][COLS];
     private final double[][] shootTimers = new double[ROWS][COLS];
 
-    private final List<Zombie> zombies = new ArrayList<>();
+    private final List<ActiveZombie> zombies = new ArrayList<>();
     private final List<Bullet> bullets = new ArrayList<>();
     private final List<Sun> suns = new ArrayList<>();
 
@@ -83,20 +85,23 @@ public class GardenDefenseApp extends GameApplication {
         }
     }
 
-    private static class Zombie {
-        final ZombieNormal definicao;
+    private static class ActiveZombie {
+        final Zombie definicao;
         Entity entity;
         final int row;
         int hp;
         final int maxHp;
+        final pt.escola.gardendefense.personagens.zombies.SpriteSheetView animation;
         final double speed;
 
-        Zombie(ZombieNormal definicao, Entity entity, int row, int hp, double speed) {
+        ActiveZombie(Zombie definicao, Entity entity, int row, int hp, double speed, Node view) {
             this.definicao = definicao;
             this.entity = entity;
             this.row = row;
             this.hp = hp;
             this.maxHp = hp;
+            this.animation = view instanceof pt.escola.gardendefense.personagens.zombies.SpriteSheetView sprite
+                    ? sprite : null;
             this.speed = speed;
         }
     }
@@ -453,12 +458,12 @@ public class GardenDefenseApp extends GameApplication {
         return Math.max(1.5, 4.5 - elapsed * 0.04);
     }
 
-    private double zombieSpeed() {
-        return zombiePadrao.getVelocidade() + Math.min(25, elapsed * 0.3);
+    private double zombieSpeed(Zombie def) {
+        return def.getVelocidade() + Math.min(25, elapsed * 0.3);
     }
 
-    private int zombieHp() {
-        return zombiePadrao.getVidaMax() + (int) (elapsed / 45);
+    private int zombieHp(Zombie def) {
+        return def.getVidaMax() + (int) (elapsed / 45);
     }
 
     private void updateHover() {
@@ -500,7 +505,7 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private boolean hasZombieInRow(int row) {
-        for (Zombie zombie : zombies) {
+        for (ActiveZombie zombie : zombies) {
             if (zombie.row == row) {
                 return true;
             }
@@ -535,22 +540,26 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private void spawnZombie() {
-        ZombieNormal def = zombiePadrao;
+        Zombie def = moldesZombies.get(random.nextInt(moldesZombies.size()));
         int row = random.nextInt(ROWS);
         double x = WIDTH - def.getLargura();
         double y = GRID_Y + row * CELL_H + CELL_H / 2 - def.getAltura() / 2;
 
+        Node view = def.criarVista();
         Entity zombieEntity = entityBuilder()
                 .at(x, y)
-                .viewWithBBox(texture(def.getTextura(), def.getLargura(), def.getAltura()))
+                .viewWithBBox(view)
                 .buildAndAttach();
 
-        zombies.add(new Zombie(def, zombieEntity, row, zombieHp(), zombieSpeed()));
+        zombies.add(new ActiveZombie(def, zombieEntity, row, zombieHp(def), zombieSpeed(def), view));
         BoardProjection.place(zombieEntity, def.getLargura(), def.getAltura(), row, 0);
     }
 
     private void updateZombies(double tpf) {
-        for (Zombie zombie : new ArrayList<>(zombies)) {
+        for (ActiveZombie zombie : new ArrayList<>(zombies)) {
+            if (zombie.animation != null) {
+                zombie.animation.advance(tpf);
+            }
             Entity e = zombie.entity;
             Plant blocking = findBlockingPlant(zombie);
 
@@ -577,7 +586,7 @@ public class GardenDefenseApp extends GameApplication {
         }
     }
 
-    private Plant findBlockingPlant(Zombie zombie) {
+    private Plant findBlockingPlant(ActiveZombie zombie) {
         Entity e = zombie.entity;
         double zLeft = e.getX();
         double zRight = e.getX() + zombie.definicao.getLargura();
@@ -639,7 +648,7 @@ public class GardenDefenseApp extends GameApplication {
         for (Bullet bullet : new ArrayList<>(bullets)) {
             Entity b = bullet.entity;
 
-            for (Zombie zombie : new ArrayList<>(zombies)) {
+            for (ActiveZombie zombie : new ArrayList<>(zombies)) {
                 if (zombie.row != bullet.row) {
                     continue;
                 }
@@ -671,7 +680,7 @@ public class GardenDefenseApp extends GameApplication {
         bullets.remove(bullet);
     }
 
-    private void removeZombie(Zombie zombie) {
+    private void removeZombie(ActiveZombie zombie) {
         getGameWorld().removeEntity(zombie.entity);
         zombies.remove(zombie);
     }

@@ -17,7 +17,7 @@ public class ZombieNeo extends Zombie {
 
     @Override
     public String getTextura() {
-        return "neo_sprite.png";
+        return "zombies_sprites/neo_sprite.png";
     }
 
     @Override

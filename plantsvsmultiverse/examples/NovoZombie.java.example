@@ -1,0 +1,14 @@
+// Copia para src/main/java/pt/escola/gardendefense/personagens/zombies/NovoZombie.java.
+// Compila e reinicia o jogo para incluir o molde nos spawns.
+package pt.escola.gardendefense.personagens.zombies;
+
+public class NovoZombie extends ZombieNormal {
+    @Override public String getNome() { return "Novo Zombie"; }
+    @Override public String getTextura() { return "Zombie.png"; }
+    @Override public int getVidaMax() { return 5; }
+    @Override public double getVelocidade() { return 30; }
+    @Override public double getDanoPorSegundo() { return 35; }
+
+    // Para animar, sobrescreve criarVista() e devolve um SpriteSheetView novo por zombie.
+    // Mantém a classe pública com construtor público sem argumentos.
+}
