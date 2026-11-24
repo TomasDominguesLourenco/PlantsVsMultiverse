@@ -12,7 +12,7 @@ import javafx.scene.shape.Polygon;
 
 import pt.escola.gardendefense.personagens.plants.CatalogoPlantas;
 import pt.escola.gardendefense.personagens.plants.Planta;
-import pt.escola.gardendefense.personagens.plants.SpriteSheetView;
+import pt.escola.gardendefense.personagens.plants.VistaAnimada;
 import pt.escola.gardendefense.personagens.zombies.ZombieNormal;
 
 import java.util.ArrayList;
@@ -67,13 +67,16 @@ public class GardenDefenseApp extends GameApplication {
 
     private static class Plant {
         final Planta definicao;
-        final SpriteSheetView animation;
+        final VistaAnimada animation;
         Entity entity;
         final int row;
         final int col;
         double hp;
+        Zombie attackTarget;
+        double impactTimer;
+        double shotWindup = -1;
 
-        Plant(Planta definicao, Entity entity, int row, int col, SpriteSheetView animation) {
+        Plant(Planta definicao, Entity entity, int row, int col, VistaAnimada animation) {
             this.definicao = definicao;
             this.animation = animation;
             this.hp = definicao.getVidaMax();
@@ -108,11 +111,13 @@ public class GardenDefenseApp extends GameApplication {
         final double speed;
         final int dano;
         final double lift;
+        final VistaAnimada animation;
 
-        Bullet(Entity entity, int row, double speed, int dano, double lift) {
+        Bullet(Entity entity, int row, double speed, int dano, double lift, VistaAnimada animation) {
             this.speed = speed;
             this.dano = dano;
             this.lift = lift;
+            this.animation = animation;
             this.entity = entity;
             this.row = row;
         }
@@ -405,7 +410,8 @@ public class GardenDefenseApp extends GameApplication {
                 .buildAndAttach();
 
         plantGrid[row][col] = new Plant(def, plant, row, col,
-                view instanceof SpriteSheetView animation ? animation : null);
+                view instanceof VistaAnimada animation ? animation : null);
+        shootTimers[row][col] = 0;
         hasPlant[row][col] = true;
         BoardProjection.place(plant, def.getLargura(), def.getAltura(), row, 0);
     }
@@ -486,17 +492,68 @@ public class GardenDefenseApp extends GameApplication {
                 if (plant.animation != null) {
                     plant.animation.advance(tpf);
                 }
+                if (plant.definicao.getAlcanceCorpoACorpo() > 0) {
+                    updateMelee(plant, tpf);
+                    continue;
+                }
                 if (!plant.definicao.podeDisparar()) {
                     continue;
                 }
 
                 shootTimers[row][col] += tpf;
-                if (shootTimers[row][col] >= plant.definicao.getIntervaloTiro() && hasZombieInRow(row)) {
+                if (plant.shotWindup >= 0) {
+                    plant.shotWindup -= tpf;
+                    if (plant.shotWindup <= 0) {
+                        plant.shotWindup = -1;
+                        shoot(plant);
+                    }
+                }
+                if (plant.shotWindup < 0 && shootTimers[row][col] >= plant.definicao.getIntervaloTiro() && hasZombieInRow(row)) {
                     shootTimers[row][col] = 0;
-                    shoot(plant);
+                    if (plant.animation != null) plant.animation.atacar();
+                    if (plant.definicao.getAtrasoDisparo() > 0) plant.shotWindup = plant.definicao.getAtrasoDisparo();
+                    else shoot(plant);
                 }
             }
         }
+    }
+
+    private void updateMelee(Plant plant, double tpf) {
+        double interval = plant.definicao.getIntervaloTiro();
+        shootTimers[plant.row][plant.col] = Math.min(interval, shootTimers[plant.row][plant.col] + tpf);
+        if (plant.attackTarget != null) {
+            plant.impactTimer -= tpf;
+            if (plant.impactTimer <= 0) finishMelee(plant);
+        }
+        if (plant.attackTarget == null && shootTimers[plant.row][plant.col] >= interval) {
+            Zombie target = null;
+            for (Zombie zombie : zombies) {
+                if (inMeleeRange(plant, zombie)
+                        && (target == null || zombie.entity.getX() < target.entity.getX())) target = zombie;
+            }
+            if (target != null) {
+                shootTimers[plant.row][plant.col] = 0;
+                plant.attackTarget = target;
+                plant.impactTimer = plant.definicao.getAtrasoImpacto();
+                if (plant.animation != null) plant.animation.atacar();
+                if (plant.impactTimer <= 0) finishMelee(plant);
+            }
+        }
+    }
+
+    private boolean inMeleeRange(Plant plant, Zombie zombie) {
+        if (zombie.row != plant.row) return false;
+        double plantRight = plant.entity.getX() + plant.definicao.getLargura();
+        double zombieCenter = zombie.entity.getX() + zombie.definicao.getLargura() / 2;
+        return zombieCenter >= plant.entity.getX() + plant.definicao.getLargura() / 2
+                && zombie.entity.getX() - plantRight <= plant.definicao.getAlcanceCorpoACorpo();
+    }
+
+    private void finishMelee(Plant plant) {
+        Zombie target = plant.attackTarget;
+        plant.attackTarget = null;
+        // A swing can miss if the target leaves reach or another plant defeats it.
+        if (zombies.contains(target) && inMeleeRange(plant, target)) damageZombie(target, plant.definicao.getDano());
     }
 
     private boolean hasZombieInRow(int row) {
@@ -510,22 +567,24 @@ public class GardenDefenseApp extends GameApplication {
 
     private void shoot(Plant plant) {
         Entity e = plant.entity;
-        double x = e.getX() + plant.definicao.getLargura() - 8;
-        double y = e.getY() + 16;
+        double x = e.getX() + plant.definicao.getSaidaProjetilX() - PROJECTILE_SIZE / 2.0;
+        double y = GRID_Y + plant.row * CELL_H + CELL_H / 2 - PROJECTILE_SIZE / 2.0;
+        var view = plant.definicao.criarVistaProjetil(PROJECTILE_SIZE);
 
         Entity bullet = entityBuilder()
                 .at(x, y)
-                .viewWithBBox(plant.definicao.criarVistaProjetil(PROJECTILE_SIZE))
+                .viewWithBBox(view)
                 .buildAndAttach();
 
         double lift = plant.definicao.getAlturaProjetil();
         bullets.add(new Bullet(bullet, plant.row, plant.definicao.getVelocidadeProjetil(),
-                plant.definicao.getDano(), lift));
+                plant.definicao.getDano(), lift, view instanceof VistaAnimada animation ? animation : null));
         BoardProjection.place(bullet, PROJECTILE_SIZE, PROJECTILE_SIZE, plant.row, lift);
     }
 
     private void updateBullets(double tpf) {
         for (Bullet bullet : new ArrayList<>(bullets)) {
+            if (bullet.animation != null) bullet.animation.advance(tpf);
             bullet.entity.setX(bullet.entity.getX() + bullet.speed * tpf);
             BoardProjection.place(bullet.entity, PROJECTILE_SIZE, PROJECTILE_SIZE, bullet.row, bullet.lift);
             if (bullet.entity.getX() > WIDTH) {
@@ -650,19 +709,23 @@ public class GardenDefenseApp extends GameApplication {
 
                 if (sameRow && touching) {
                     removeBullet(bullet);
-                    zombie.hp -= bullet.dano;
-
-                    if (zombie.hp <= 0) {
-                        removeZombie(zombie);
-                        score += 10;
-                        updateInterface();
-                    } else {
-                        double ratio = (double) zombie.hp / zombie.maxHp;
-                        z.setOpacity(0.45 + 0.55 * ratio);
-                    }
+                    damageZombie(zombie, bullet.dano);
                     break;
                 }
             }
+        }
+    }
+
+    private void damageZombie(Zombie zombie, int damage) {
+        if (!zombies.contains(zombie)) return;
+        zombie.hp -= damage;
+        if (zombie.hp <= 0) {
+            removeZombie(zombie);
+            score += 10;
+            updateInterface();
+        } else {
+            double ratio = (double) zombie.hp / zombie.maxHp;
+            zombie.entity.setOpacity(0.45 + 0.55 * ratio);
         }
     }
 

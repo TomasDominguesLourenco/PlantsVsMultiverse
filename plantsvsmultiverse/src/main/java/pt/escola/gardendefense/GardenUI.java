@@ -197,8 +197,11 @@ final class GardenUI {
             node.setCursor(Cursor.HAND); node.setFocusTraversable(true);
             node.setAccessibleRole(AccessibleRole.BUTTON);
             node.setAccessibleText(plant.getNome() + ", " + plant.getCustoSol() + " sol");
+            String attackInfo = plant.getAlcanceCorpoACorpo() > 0 ? "Corpo a corpo"
+                    : plant.podeDisparar() ? "À distância" : "Suporte";
             Tooltip.install(node, new Tooltip(plant.getNome() + "\n" + plant.getCustoSol()
-                    + " sol · " + plant.getVidaMax() + " de vida"));
+                    + " sol · " + plant.getVidaMax() + " de vida\n" + attackInfo
+                    + " · " + plant.getDano() + " de dano · " + plant.getIntervaloTiro() + " s"));
             node.setOnMouseClicked(event -> {
                 if (event.isStillSincePress()) { play("ui-tap.wav"); selectPlant.accept(plant); }
                 event.consume();

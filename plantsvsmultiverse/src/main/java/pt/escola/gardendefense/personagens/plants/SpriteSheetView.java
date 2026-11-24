@@ -5,7 +5,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
 
 /** Reproduz uma grelha de fotogramas por ordem de leitura, usando o tempo do jogo. */
-public final class SpriteSheetView extends ImageView {
+public final class SpriteSheetView extends ImageView implements VistaAnimada {
     static final int FRAME_PADDING = 2;
     private final Image[] frames;
     private final int fps;
@@ -45,6 +45,7 @@ public final class SpriteSheetView extends ImageView {
         return frames;
     }
 
+    @Override
     public void advance(double seconds) {
         elapsed = (elapsed + seconds) % cycleSeconds;
         int frame = Math.min((int) (elapsed * fps), frames.length - 1);

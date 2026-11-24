@@ -31,6 +31,18 @@ public abstract class Planta implements Personagem {
         return true;
     }
 
+    /** Alcance à frente da planta, em píxeis lógicos; zero desativa o corpo a corpo. */
+    public double getAlcanceCorpoACorpo() { return 0; }
+
+    /** Tempo entre começar a animação do golpe e aplicar o dano. */
+    public double getAtrasoImpacto() { return 0; }
+
+    /** Tempo de preparação da animação antes de lançar um projétil. */
+    public double getAtrasoDisparo() { return 0; }
+
+    /** Posição horizontal da saída do projétil, relativa à planta. */
+    public double getSaidaProjetilX() { return getLargura(); }
+
     public Node criarVistaProjetil(double tamanho) {
         return texture("ProjectilePea.png", tamanho, tamanho);
     }
@@ -42,10 +54,10 @@ public abstract class Planta implements Personagem {
     /** Custo em energia para plantar. */
     public abstract int getCustoSol();
 
-    /** Dano causado por cada projétil. */
+    /** Dano de cada ataque: projétil ou golpe corpo a corpo. */
     public abstract int getDano();
 
-    /** Segundos entre cada tiro. */
+    /** Segundos entre ataques (disparos ou golpes corpo a corpo). */
     public abstract double getIntervaloTiro();
 
     /** Velocidade do projétil em pixels por segundo. */
