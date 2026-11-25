@@ -5,6 +5,13 @@ package pt.escola.gardendefense.personagens.zombies;
  */
 public class ZombieNeo extends Zombie {
 
+
+    /** 5 dos 100 pesos totais, ou seja, 5% dos spawns. */
+    @Override
+    public int getPesoSpawn() {
+        return 5;
+    }
+
     @Override
     public String getNome() {
         return "Zombie Neo";

@@ -5,6 +5,13 @@ package pt.escola.gardendefense.personagens.zombies;
  */
 public class ZombieNormal extends Zombie {
 
+
+    /** 90 dos 100 pesos totais: o zombie mais comum do jardim. */
+    @Override
+    public int getPesoSpawn() {
+        return 60;
+    }
+
     @Override
     public String getNome() {
         return "Zombie Normal";

@@ -11,10 +11,14 @@ import javafx.scene.paint.Color;
 import javafx.scene.Node;
 import javafx.scene.shape.Polygon;
 
+import pt.escola.gardendefense.combate.AlvoPlanta;
+import pt.escola.gardendefense.combate.Projetil;
+import pt.escola.gardendefense.combate.ProjetilConfig;
 import pt.escola.gardendefense.personagens.plants.CatalogoPlantas;
 import pt.escola.gardendefense.personagens.plants.Planta;
 import pt.escola.gardendefense.personagens.plants.SpriteSheetView;
 import pt.escola.gardendefense.personagens.zombies.CatalogoZombies;
+import pt.escola.gardendefense.personagens.zombies.ContextoZombie;
 import pt.escola.gardendefense.personagens.zombies.Zombie;
 
 import java.util.ArrayList;
@@ -57,7 +61,7 @@ public class GardenDefenseApp extends GameApplication {
     private final double[][] shootTimers = new double[ROWS][COLS];
 
     private final List<ActiveZombie> zombies = new ArrayList<>();
-    private final List<Bullet> bullets = new ArrayList<>();
+    private final List<Projetil> projeteis = new ArrayList<>();
     private final List<Sun> suns = new ArrayList<>();
 
     private double spawnTimer = 0;
@@ -88,11 +92,12 @@ public class GardenDefenseApp extends GameApplication {
     private static class ActiveZombie {
         final Zombie definicao;
         Entity entity;
-        final int row;
+        int row;
         int hp;
         final int maxHp;
         final pt.escola.gardendefense.personagens.zombies.SpriteSheetView animation;
-        final double speed;
+        double speed;
+        double shootTimer;
 
         ActiveZombie(Zombie definicao, Entity entity, int row, int hp, double speed, Node view) {
             this.definicao = definicao;
@@ -103,23 +108,6 @@ public class GardenDefenseApp extends GameApplication {
             this.animation = view instanceof pt.escola.gardendefense.personagens.zombies.SpriteSheetView sprite
                     ? sprite : null;
             this.speed = speed;
-        }
-    }
-
-    private static class Bullet {
-        Entity entity;
-        final int row;
-
-        final double speed;
-        final int dano;
-        final double lift;
-
-        Bullet(Entity entity, int row, double speed, int dano, double lift) {
-            this.speed = speed;
-            this.dano = dano;
-            this.lift = lift;
-            this.entity = entity;
-            this.row = row;
         }
     }
 
@@ -387,7 +375,7 @@ public class GardenDefenseApp extends GameApplication {
             getGameWorld().removeEntity(e);
         }
         zombies.clear();
-        bullets.clear();
+        projeteis.clear();
         suns.clear();
 
         for (int row = 0; row < ROWS; row++) {
@@ -447,11 +435,11 @@ public class GardenDefenseApp extends GameApplication {
         }
 
         updatePlants(tpf);
-        updateBullets(tpf);
+        updateProjeteis(tpf);
         updateZombies(tpf);
         if (state != State.PLAYING) return;
         updateSuns(tpf);
-        checkBulletHits();
+        checkProjeteis();
     }
 
     private double spawnInterval() {
@@ -518,29 +506,43 @@ public class GardenDefenseApp extends GameApplication {
         double x = e.getX() + plant.definicao.getLargura() - 8;
         double y = e.getY() + 16;
 
-        Entity bullet = entityBuilder()
-                .at(x, y)
-                .viewWithBBox(plant.definicao.criarVistaProjetil(PROJECTILE_SIZE))
-                .buildAndAttach();
-
-        double lift = plant.definicao.getAlturaProjetil();
-        bullets.add(new Bullet(bullet, plant.row, plant.definicao.getVelocidadeProjetil(),
-                plant.definicao.getDano(), lift));
-        BoardProjection.place(bullet, PROJECTILE_SIZE, PROJECTILE_SIZE, plant.row, lift);
+        lancarProjetil(plant.definicao.criarVistaProjetil(PROJECTILE_SIZE), plant.row,
+                plant.definicao.getVelocidadeProjetil(), plant.definicao.getDano(),
+                plant.definicao.getAlturaProjetil(), PROJECTILE_SIZE, 1, x, y);
     }
 
-    private void updateBullets(double tpf) {
-        for (Bullet bullet : new ArrayList<>(bullets)) {
-            bullet.entity.setX(bullet.entity.getX() + bullet.speed * tpf);
-            BoardProjection.place(bullet.entity, PROJECTILE_SIZE, PROJECTILE_SIZE, bullet.row, bullet.lift);
-            if (bullet.entity.getX() > WIDTH) {
-                removeBullet(bullet);
+    /**
+     * Cria o projétil e coloca-o na linha indicada.
+     * direcao 1 viaja para a direita (plantas); -1 viaja para a esquerda (zombies).
+     */
+    private void lancarProjetil(javafx.scene.Node view, int linha, double velocidade, int dano,
+                                double lift, double tamanho, int direcao, double x, double y) {
+        Entity entity = entityBuilder()
+                .at(x, y)
+                .viewWithBBox(view)
+                .buildAndAttach();
+
+        projeteis.add(new Projetil(entity, linha, dano, velocidade, lift, tamanho, direcao));
+        BoardProjection.place(entity, tamanho, tamanho, linha, lift);
+    }
+
+    private void updateProjeteis(double tpf) {
+        for (Projetil projetil : new ArrayList<>(projeteis)) {
+            projetil.entity.setX(projetil.entity.getX() + projetil.direcao * projetil.velocidade * tpf);
+            BoardProjection.place(projetil.entity, projetil.tamanho, projetil.tamanho,
+                    projetil.linha, projetil.lift);
+            if (projetil.entity.getX() > WIDTH || projetil.entity.getX() + projetil.tamanho < 0) {
+                removerProjetil(projetil);
             }
         }
     }
 
     private void spawnZombie() {
-        Zombie def = moldesZombies.get(random.nextInt(moldesZombies.size()));
+        Zombie molde = sortearZombie();
+        if (molde == null) {
+            return;
+        }
+        Zombie def = CatalogoZombies.novaInstancia(molde);
         int row = random.nextInt(ROWS);
         double x = WIDTH - def.getLargura();
         double y = GRID_Y + row * CELL_H + CELL_H / 2 - def.getAltura() / 2;
@@ -555,11 +557,43 @@ public class GardenDefenseApp extends GameApplication {
         BoardProjection.place(zombieEntity, def.getLargura(), def.getAltura(), row, 0);
     }
 
+    /** Escolhe um molde de acordo com o peso declarado em Zombie.getPesoSpawn(). */
+    private Zombie sortearZombie() {
+        int total = 0;
+        for (Zombie molde : moldesZombies) {
+            total += Math.max(0, molde.getPesoSpawn());
+        }
+        if (total <= 0) {
+            return null;
+        }
+
+        int sorteio = random.nextInt(total);
+        for (Zombie molde : moldesZombies) {
+            sorteio -= Math.max(0, molde.getPesoSpawn());
+            if (sorteio < 0) {
+                return molde;
+            }
+        }
+        return moldesZombies.getLast();
+    }
+
     private void updateZombies(double tpf) {
         for (ActiveZombie zombie : new ArrayList<>(zombies)) {
+            if (!zombies.contains(zombie)) {
+                continue;
+            }
             if (zombie.animation != null) {
                 zombie.animation.advance(tpf);
             }
+
+            // Habilidade especial do tipo; pode mudar a linha, a vida, a velocidade, etc.
+            zombie.definicao.atualizar(new ContextoDoZombie(zombie), tpf);
+            if (!zombies.contains(zombie)) {
+                continue;
+            }
+
+            dispararSeTiverArma(zombie, tpf);
+
             Entity e = zombie.entity;
             Plant blocking = findBlockingPlant(zombie);
 
@@ -584,6 +618,161 @@ public class GardenDefenseApp extends GameApplication {
                 }
             }
         }
+    }
+
+    /** Dispara a arma declarada em Zombie.getArma() quando há planta na frente. */
+    private void dispararSeTiverArma(ActiveZombie zombie, double tpf) {
+        ProjetilConfig arma = zombie.definicao.getArma();
+        if (arma == null) {
+            return;
+        }
+        if (!plantaAFrente(zombie)) {
+            zombie.shootTimer = 0;
+            return;
+        }
+
+        zombie.shootTimer += tpf;
+        if (zombie.shootTimer < arma.intervalo()) {
+            return;
+        }
+        zombie.shootTimer = 0;
+
+        Entity e = zombie.entity;
+        double y = e.getY() + (zombie.definicao.getAltura() - arma.tamanho()) / 2;
+        lancarProjetil(zombie.definicao.criarVistaProjetil(arma.tamanho()), zombie.row,
+                arma.velocidade(), arma.dano(), arma.lift(), arma.tamanho(), -1, e.getX(), y);
+    }
+
+    /** Verdadeiro se a linha do zombie tem uma planta ainda à sua esquerda. */
+    private boolean plantaAFrente(ActiveZombie zombie) {
+        for (int col = 0; col < COLS; col++) {
+            Plant plant = plantGrid[zombie.row][col];
+            if (plant != null && plant.entity.getX() < zombie.entity.getX()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Contexto entregue a Zombie.atualizar(): o mundo à volta do próprio zombie. */
+    private final class ContextoDoZombie implements ContextoZombie {
+        private final ActiveZombie zombie;
+
+        private ContextoDoZombie(ActiveZombie zombie) {
+            this.zombie = zombie;
+        }
+
+        @Override
+        public Entity entidade() {
+            return zombie.entity;
+        }
+
+        @Override
+        public int linha() {
+            return zombie.row;
+        }
+
+        @Override
+        public boolean mudarLinha(int linha) {
+            if (linha < 0 || linha >= ROWS) {
+                return false;
+            }
+            if (linha == zombie.row) {
+                return true;
+            }
+            zombie.row = linha;
+            BoardProjection.place(zombie.entity, zombie.definicao.getLargura(),
+                    zombie.definicao.getAltura(), linha, 0);
+            return true;
+        }
+
+        @Override
+        public double velocidade() {
+            return zombie.speed;
+        }
+
+        @Override
+        public void velocidade(double pxPorSegundo) {
+            zombie.speed = pxPorSegundo;
+        }
+
+        @Override
+        public double vida() {
+            return zombie.hp;
+        }
+
+        @Override
+        public void vida(double vida) {
+            zombie.hp = (int) Math.ceil(vida);
+            if (zombie.hp <= 0 && zombies.contains(zombie)) {
+                removeZombie(zombie);
+                score += 10;
+                updateInterface();
+            }
+        }
+
+        @Override
+        public List<Projetil> projeteisInimigos() {
+            List<Projetil> proximos = new ArrayList<>();
+            double frenteDoZombie = zombie.entity.getX();
+            for (Projetil projetil : projeteis) {
+                if (projetil.paraDireita() && projetil.linha == zombie.row
+                        && projetil.entity.getX() < frenteDoZombie) {
+                    proximos.add(projetil);
+                }
+            }
+            return List.copyOf(proximos);
+        }
+
+        @Override
+        public List<AlvoPlanta> plantasNaLinha() {
+            List<AlvoPlanta> alvos = new ArrayList<>();
+            for (int col = 0; col < COLS; col++) {
+                Plant plant = plantGrid[zombie.row][col];
+                if (plant != null) {
+                    alvos.add(alvoDe(plant));
+                }
+            }
+            return List.copyOf(alvos);
+        }
+
+        @Override
+        public void danificar(AlvoPlanta alvo, int dano) {
+            if (alvo == null || alvo.linha() < 0 || alvo.linha() >= ROWS
+                    || alvo.coluna() < 0 || alvo.coluna() >= COLS) {
+                return;
+            }
+            Plant plant = plantGrid[alvo.linha()][alvo.coluna()];
+            if (plant == null) {
+                return;
+            }
+            plant.hp -= dano;
+            if (plant.hp <= 0) {
+                removePlant(plant);
+            }
+        }
+
+        @Override
+        public void lancar(ProjetilConfig arma, int linha) {
+            if (arma == null || linha < 0 || linha >= ROWS) {
+                return;
+            }
+            Entity e = zombie.entity;
+            double y = e.getY() + (zombie.definicao.getAltura() - arma.tamanho()) / 2;
+            lancarProjetil(zombie.definicao.criarVistaProjetil(arma.tamanho()), linha,
+                    arma.velocidade(), arma.dano(), arma.lift(), arma.tamanho(), -1, e.getX(), y);
+        }
+
+        @Override
+        public double tempoDecorrido() {
+            return elapsed;
+        }
+    }
+
+    private AlvoPlanta alvoDe(Plant plant) {
+        return new AlvoPlanta(plant.row, plant.col, plant.entity.getX(),
+                plant.definicao.getLargura(), plant.definicao.getAltura(),
+                plant.hp, plant.definicao.getVidaMax());
     }
 
     private Plant findBlockingPlant(ActiveZombie zombie) {
@@ -644,40 +833,78 @@ public class GardenDefenseApp extends GameApplication {
         }
     }
 
-    private void checkBulletHits() {
-        for (Bullet bullet : new ArrayList<>(bullets)) {
-            Entity b = bullet.entity;
-
-            for (ActiveZombie zombie : new ArrayList<>(zombies)) {
-                if (zombie.row != bullet.row) {
-                    continue;
-                }
-
-                Entity z = zombie.entity;
-                boolean sameRow = Math.abs(b.getY() - (z.getY() + zombie.definicao.getAltura() / 2)) < 30;
-                boolean touching = Math.abs(b.getX() - (z.getX() + zombie.definicao.getLargura() / 2)) < 32;
-
-                if (sameRow && touching) {
-                    removeBullet(bullet);
-                    zombie.hp -= bullet.dano;
-
-                    if (zombie.hp <= 0) {
-                        removeZombie(zombie);
-                        score += 10;
-                        updateInterface();
-                    } else {
-                        double ratio = (double) zombie.hp / zombie.maxHp;
-                        z.setOpacity(0.45 + 0.55 * ratio);
-                    }
-                    break;
-                }
+    private void checkProjeteis() {
+        for (Projetil projetil : new ArrayList<>(projeteis)) {
+            if (!projeteis.contains(projetil)) {
+                continue;
+            }
+            if (projetil.paraDireita()) {
+                atingirZombie(projetil);
+            } else {
+                atingirPlanta(projetil);
             }
         }
     }
 
-    private void removeBullet(Bullet bullet) {
-        getGameWorld().removeEntity(bullet.entity);
-        bullets.remove(bullet);
+    private void atingirZombie(Projetil projetil) {
+        Entity b = projetil.entity;
+
+        for (ActiveZombie zombie : new ArrayList<>(zombies)) {
+            if (zombie.row != projetil.linha) {
+                continue;
+            }
+
+            Entity z = zombie.entity;
+            boolean sameRow = Math.abs(b.getY() - (z.getY() + zombie.definicao.getAltura() / 2)) < 30;
+            boolean touching = Math.abs(b.getX() - (z.getX() + zombie.definicao.getLargura() / 2)) < 32;
+
+            if (sameRow && touching) {
+                removerProjetil(projetil);
+                zombie.hp -= projetil.dano;
+
+                if (zombie.hp <= 0) {
+                    removeZombie(zombie);
+                    score += 10;
+                    updateInterface();
+                } else {
+                    double ratio = (double) zombie.hp / zombie.maxHp;
+                    z.setOpacity(0.45 + 0.55 * ratio);
+                }
+                return;
+            }
+        }
+    }
+
+    private void atingirPlanta(Projetil projetil) {
+        Entity b = projetil.entity;
+        if (projetil.linha < 0 || projetil.linha >= ROWS) {
+            return;
+        }
+
+        for (int col = 0; col < COLS; col++) {
+            Plant plant = plantGrid[projetil.linha][col];
+            if (plant == null) {
+                continue;
+            }
+
+            Entity p = plant.entity;
+            boolean touching = Math.abs(b.getX() - (p.getX() + plant.definicao.getLargura() / 2)) < 32;
+            if (!touching) {
+                continue;
+            }
+
+            removerProjetil(projetil);
+            plant.hp -= projetil.dano;
+            if (plant.hp <= 0) {
+                removePlant(plant);
+            }
+            return;
+        }
+    }
+
+    private void removerProjetil(Projetil projetil) {
+        getGameWorld().removeEntity(projetil.entity);
+        projeteis.remove(projetil);
     }
 
     private void removeZombie(ActiveZombie zombie) {
