@@ -57,6 +57,10 @@ public abstract class Planta implements Personagem {
         return 32;
     }
 
+    public boolean usaTrajetoriaEmArco() { return false; }
+
+    public int getDanoProjetil(int vidaMaxAlvo) { return getDano(); }
+
     /** Custo em energia para plantar. */
     public abstract int getCustoSol();
 

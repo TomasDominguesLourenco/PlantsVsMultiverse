@@ -78,6 +78,7 @@ public class GardenDefenseApp extends GameApplication {
         boolean preparingShot;
         int burstShotsRemaining;
         double burstShotTimer;
+        double extraShotCooldown;
 
         Plant(Planta definicao, Entity entity, int row, int col, VistaAnimada animation) {
             this.definicao = definicao;
@@ -116,6 +117,7 @@ public class GardenDefenseApp extends GameApplication {
         final double lift;
         final VistaAnimada animation;
         double firstStep;
+        ArcFlight arc;
 
         Bullet(Entity entity, int row, double speed, int dano, double lift, VistaAnimada animation, double firstStep) {
             this.speed = speed;
@@ -125,6 +127,27 @@ public class GardenDefenseApp extends GameApplication {
             this.firstStep = firstStep;
             this.entity = entity;
             this.row = row;
+        }
+    }
+
+    private static class ArcFlight {
+        final Zombie target;
+        final double startX;
+        final double duration;
+        double elapsed;
+
+        ArcFlight(Zombie target, double startX, double speed) {
+            this.target = target;
+            this.startX = startX;
+            double distance = Math.max(0, targetX() - startX);
+            double speedAtDistance = speed + 0.5 * distance;
+            this.duration = Math.max(0.18, distance / speedAtDistance);
+        }
+
+        double extraCooldown() { return Math.max(0, targetX() - startX) / CELL_W * 0.30; }
+
+        double targetX() {
+            return target.entity.getX() + target.definicao.getLargura() / 2 - PROJECTILE_SIZE / 2.0;
         }
     }
 
@@ -522,8 +545,10 @@ public class GardenDefenseApp extends GameApplication {
                     }
                 }
                 if (!plant.preparingShot && plant.shotWindup < 0 && plant.burstShotsRemaining == 0
-                        && shootTimers[row][col] >= plant.definicao.getIntervaloTiro() && hasZombieInRow(row)) {
+                        && shootTimers[row][col] >= plant.definicao.getIntervaloTiro() + plant.extraShotCooldown
+                        && hasShotTarget(plant)) {
                     shootTimers[row][col] = 0;
+                    plant.extraShotCooldown = 0;
                     if (plant.animation != null && plant.animation.getMomentoDisparo() >= 0) {
                         plant.preparingShot = true;
                         plant.animation.atacar(age -> {
@@ -608,7 +633,27 @@ public class GardenDefenseApp extends GameApplication {
         return false;
     }
 
+    private boolean hasShotTarget(Plant plant) {
+        return plant.definicao.usaTrajetoriaEmArco() ? findArcTarget(plant) != null : hasZombieInRow(plant.row);
+    }
+
+    private Zombie findArcTarget(Plant plant) {
+        Zombie nearest = null;
+        double nearestX = Double.POSITIVE_INFINITY;
+        double plantX = plant.entity.getX();
+        for (Zombie zombie : zombies) {
+            double center = zombie.entity.getX() + zombie.definicao.getLargura() / 2;
+            if (zombie.row == plant.row && center >= plantX && center < nearestX) {
+                nearest = zombie;
+                nearestX = center;
+            }
+        }
+        return nearest;
+    }
+
     private void shoot(Plant plant, double birthAge) {
+        Zombie target = plant.definicao.usaTrajetoriaEmArco() ? findArcTarget(plant) : null;
+        if (plant.definicao.usaTrajetoriaEmArco() && target == null) return;
         Entity e = plant.entity;
         var muzzle = plant.animation == null ? null : plant.animation.getSaidaProjetil();
         double x = e.getX() + (muzzle == null ? plant.definicao.getSaidaProjetilX() : muzzle.getX()) - PROJECTILE_SIZE / 2.0;
@@ -622,8 +667,15 @@ public class GardenDefenseApp extends GameApplication {
 
         double lift = muzzle == null ? plant.definicao.getAlturaProjetil()
                 : plant.definicao.getAltura() - muzzle.getY() - PROJECTILE_SIZE / 2.0;
-        bullets.add(new Bullet(bullet, plant.row, plant.definicao.getVelocidadeProjetil(),
-                plant.definicao.getDano(), lift, view instanceof VistaAnimada animation ? animation : null, birthAge));
+        int damage = target == null ? plant.definicao.getDano() : plant.definicao.getDanoProjetil(target.maxHp);
+        Bullet shot = new Bullet(bullet, plant.row, plant.definicao.getVelocidadeProjetil(),
+                damage, lift, view instanceof VistaAnimada animation ? animation : null, birthAge);
+        if (target != null) {
+            shot.arc = new ArcFlight(target, x, shot.speed);
+            plant.extraShotCooldown = shot.arc.extraCooldown();
+            if (plant.animation != null) plant.animation.prolongarRecarga(plant.extraShotCooldown);
+        }
+        bullets.add(shot);
         BoardProjection.place(bullet, PROJECTILE_SIZE, PROJECTILE_SIZE, plant.row, lift);
     }
 
@@ -632,12 +684,27 @@ public class GardenDefenseApp extends GameApplication {
             double step = bullet.firstStep < 0 ? tpf : Math.min(tpf, bullet.firstStep);
             bullet.firstStep = -1;
             if (bullet.animation != null) bullet.animation.advance(step);
+            if (bullet.arc != null) {
+                updateArc(bullet, step);
+                continue;
+            }
             bullet.entity.setX(bullet.entity.getX() + bullet.speed * step);
             BoardProjection.place(bullet.entity, PROJECTILE_SIZE, PROJECTILE_SIZE, bullet.row, bullet.lift);
             if (bullet.entity.getX() > WIDTH) {
                 removeBullet(bullet);
             }
         }
+    }
+
+    private void updateArc(Bullet bullet, double step) {
+        ArcFlight arc = bullet.arc;
+        arc.elapsed += step;
+        double progress = Math.min(1, arc.elapsed / arc.duration);
+        double landingLift = arc.target.definicao.getAltura() * 0.55;
+        double lift = bullet.lift + (landingLift - bullet.lift) * progress
+                + 92 * 4 * progress * (1 - progress);
+        bullet.entity.setX(arc.startX + (arc.targetX() - arc.startX) * progress);
+        BoardProjection.place(bullet.entity, PROJECTILE_SIZE, PROJECTILE_SIZE, bullet.row, lift);
     }
 
     private void spawnZombie() {
@@ -743,6 +810,13 @@ public class GardenDefenseApp extends GameApplication {
 
     private void checkBulletHits() {
         for (Bullet bullet : new ArrayList<>(bullets)) {
+            if (bullet.arc != null) {
+                if (bullet.arc.elapsed >= bullet.arc.duration) {
+                    removeBullet(bullet);
+                    damageZombie(bullet.arc.target, bullet.dano);
+                }
+                continue;
+            }
             Entity b = bullet.entity;
 
             for (Zombie zombie : new ArrayList<>(zombies)) {

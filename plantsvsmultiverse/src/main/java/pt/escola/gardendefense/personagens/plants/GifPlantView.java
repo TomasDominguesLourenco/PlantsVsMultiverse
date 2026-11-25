@@ -5,6 +5,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.image.PixelFormat;
 import javafx.scene.image.WritableImage;
 import javafx.geometry.Point2D;
+import javafx.scene.Group;
 import javafx.scene.shape.Polygon;
 import org.w3c.dom.Node;
 
@@ -18,11 +19,16 @@ import java.util.Objects;
 import java.util.function.DoubleConsumer;
 
 /** GIFs fornecidos pelo artista, com transparência, duração e composição originais. */
-public final class GifPlantView extends ImageView implements VistaAnimada {
+public final class GifPlantView extends Group implements VistaAnimada {
+    private final ImageView current = new ImageView();
+    private final double width;
+    private final double height;
     private final Frames idle;
     private final Frames attack;
+    private final double idleResumeTime;
     private boolean attacking;
     private double elapsed;
+    private double extraRecovery;
     private final int shotFrame;
     private final Point2D muzzle;
     private final Polygon shotClip;
@@ -34,10 +40,16 @@ public final class GifPlantView extends ImageView implements VistaAnimada {
 
     GifPlantView(Frames idle, Frames attack, double width, double height,
                  int shotFrame, Point2D muzzle, boolean hideEmbeddedShot) {
-        super(idle.images[0]);
         this.idle = idle; this.attack = attack;
         this.shotFrame = shotFrame; this.muzzle = muzzle;
-        setFitWidth(width); setFitHeight(height); setPreserveRatio(true);
+        this.width = width;
+        this.height = height;
+        idleResumeTime = idle.tempoFotograma(closestIdleFrame());
+        current.setFitWidth(width);
+        current.setFitHeight(height);
+        current.setPreserveRatio(true);
+        getChildren().add(current);
+        show(idle.images[0]);
         if (hideEmbeddedShot && muzzle != null) {
             double edge = (muzzle.getX() + .025) * width;
             double top = (muzzle.getY() - .12) * height, bottom = (muzzle.getY() + .12) * height;
@@ -51,14 +63,22 @@ public final class GifPlantView extends ImageView implements VistaAnimada {
     @Override public double getMomentoDisparo() { return shotFrame < 0 ? -1 : attack.tempoFotograma(shotFrame); }
     @Override public Point2D getSaidaProjetil() {
         if (muzzle == null) return null;
-        double scale = Math.min(getFitWidth() / getImage().getWidth(), getFitHeight() / getImage().getHeight());
-        return new Point2D(muzzle.getX() * getImage().getWidth() * scale,
-                muzzle.getY() * getImage().getHeight() * scale);
+        var image = current.getImage();
+        double scale = scale(image);
+        return new Point2D(current.getTranslateX() + muzzle.getX() * image.getWidth() * scale,
+                current.getTranslateY() + muzzle.getY() * image.getHeight() * scale);
     }
+
+    @Override public void prolongarRecarga(double seconds) { extraRecovery = seconds; }
 
     @Override
     public void atacar() {
-        attacking = true; elapsed = 0; pendingShot = null; setImage(attack.images[0]); setClip(null);
+        attacking = true;
+        elapsed = 0;
+        extraRecovery = 0;
+        pendingShot = null;
+        show(attack.images[0]);
+        current.setClip(null);
     }
 
     @Override public void atacar(DoubleConsumer emitir) {
@@ -71,23 +91,79 @@ public final class GifPlantView extends ImageView implements VistaAnimada {
     public void advance(double seconds) {
         elapsed += seconds;
         double attackAge = elapsed;
-        boolean release = pendingShot != null && attackAge + 1e-9 >= getMomentoDisparo();
-        if (attacking && elapsed >= attack.duration) {
-            elapsed -= attack.duration; attacking = false;
+        double launch = getMomentoDisparo();
+        boolean release = pendingShot != null && attackAge + 1e-9 >= launch;
+        double totalAttack = attack.duration + extraRecovery;
+        if (attacking && elapsed >= totalAttack) {
+            elapsed = idleResumeTime + elapsed - totalAttack;
+            attacking = false;
         }
         Frames frames = attacking ? attack : idle;
         if (!attacking) elapsed %= frames.duration;
         double time = elapsed;
+        if (attacking && extraRecovery > 0 && time > launch) {
+            time = launch + (time - launch) * (attack.duration - launch) / (totalAttack - launch);
+        }
         int frame = 0;
         while (frame < frames.images.length - 1 && time + 1e-9 >= frames.delays[frame]) {
             time -= frames.delays[frame++];
         }
-        setImage(frames.images[frame]);
-        setClip(attacking && shotClip != null && frame >= shotFrame && frame < shotFrame + 2 ? shotClip : null);
+        show(frames.images[frame]);
+        current.setClip(attacking && shotClip != null && frame >= shotFrame && frame < shotFrame + 2 ? shotClip : null);
         if (release) {
             DoubleConsumer shot = pendingShot; pendingShot = null;
-            shot.accept(Math.max(0, attackAge - getMomentoDisparo()));
+            shot.accept(Math.max(0, attackAge - launch));
         }
+    }
+
+    private double scale(Image image) {
+        return Math.min(width / image.getWidth(), height / image.getHeight());
+    }
+
+    private int closestIdleFrame() {
+        Image finalPose = attack.images[attack.images.length - 1];
+        double bestDistance = Double.POSITIVE_INFINITY;
+        int bestFrame = 0;
+        for (int frame = 0; frame < idle.images.length; frame++) {
+            Image candidate = idle.images[frame];
+            if (candidate == finalPose) return frame;
+            double distance = 0;
+            for (int row = 0; row < 16; row++) {
+                for (int col = 0; col < 16; col++) {
+                    double x = (col + .5) * width / 16;
+                    double y = (row + .5) * height / 16;
+                    var first = samplePose(finalPose, x, y);
+                    var second = samplePose(candidate, x, y);
+                    double a = first.getOpacity(), b = second.getOpacity();
+                    distance += Math.abs(a - b) + Math.abs(a * first.getRed() - b * second.getRed())
+                            + Math.abs(a * first.getGreen() - b * second.getGreen())
+                            + Math.abs(a * first.getBlue() - b * second.getBlue());
+                }
+            }
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestFrame = frame;
+            }
+        }
+        return bestFrame;
+    }
+
+    private javafx.scene.paint.Color samplePose(Image image, double x, double y) {
+        double scale = scale(image);
+        double sampleX = (x - (width - image.getWidth() * scale) / 2) / scale;
+        double sampleY = (y - (height - image.getHeight() * scale)) / scale;
+        if (sampleX < 0 || sampleX >= image.getWidth() || sampleY < 0 || sampleY >= image.getHeight()) {
+            return javafx.scene.paint.Color.TRANSPARENT;
+        }
+        return image.getPixelReader().getColor((int) sampleX, (int) sampleY);
+    }
+
+    private void show(Image image) {
+        if (current.getImage() == image) return;
+        current.setImage(image);
+        double scale = scale(image);
+        current.setTranslateX((width - image.getWidth() * scale) / 2);
+        current.setTranslateY(height - image.getHeight() * scale);
     }
 
     static final class Frames {

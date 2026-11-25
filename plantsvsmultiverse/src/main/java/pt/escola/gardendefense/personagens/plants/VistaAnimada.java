@@ -9,6 +9,8 @@ public interface VistaAnimada {
 
     default void atacar() {}
 
+    default void prolongarRecarga(double seconds) {}
+
     /** Instante de emissão dentro da animação; negativo usa o atraso do molde. */
     default double getMomentoDisparo() { return -1; }
 
