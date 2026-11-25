@@ -258,16 +258,6 @@ public class GardenDefenseApp extends GameApplication {
             protected void onActionBegin() { togglePause(); }
         }, KeyCode.P);
 
-        getInput().addAction(new UserAction("Energia de teste") {
-            @Override
-            protected void onActionBegin() {
-                if (state == State.PLAYING) {
-                    sun += 25;
-                    updateInterface();
-                }
-            }
-        }, KeyCode.C);
-
         KeyCode[] atalhos = { KeyCode.DIGIT1, KeyCode.DIGIT2, KeyCode.DIGIT3,
                 KeyCode.DIGIT4, KeyCode.DIGIT5, KeyCode.DIGIT6,
                 KeyCode.DIGIT7, KeyCode.DIGIT8, KeyCode.DIGIT9 };

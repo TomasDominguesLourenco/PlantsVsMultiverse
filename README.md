@@ -46,7 +46,6 @@ mvn exec:java
 - `ENTER`: começar, jogar outra vez ou continuar uma partida pausada
 - `ESC`, `P` ou `M`: pausar / continuar durante a partida
 - `M`: voltar ao menu depois do fim do jogo
-- `C`: adicionar 25 de energia (tecla de teste)
 
 O jogo arranca em ecrã inteiro. O botão **PAUSA** abre as opções de continuar,
 volume de música e efeitos, silêncio, janela/ecrã inteiro, menu principal e saída.
@@ -56,7 +55,7 @@ Os volumes mantêm-se entre partidas enquanto a aplicação estiver aberta.
 Ao clicar em **JOGAR** ou premir **ENTER**, o menu sai com fade e zoom out;
 o jardim entra com zoom in e um pequeno ressalto. A partida começa depois da transição.
 
-Cada planta custa 50 de energia. O sol cai do céu periodicamente e tem de ser apanhado com o clique antes de desaparecer.
+O custo de cada planta aparece no respetivo cartão. O sol cai do céu periodicamente e tem de ser apanhado com o clique antes de desaparecer.
 Os zombies avançam para a esquerda, param à frente das plantas e comem-nas. A dificuldade aumenta com o tempo (spawn mais frequente, zombies mais rápidos e com mais vida).
 
 ## Ficheiros

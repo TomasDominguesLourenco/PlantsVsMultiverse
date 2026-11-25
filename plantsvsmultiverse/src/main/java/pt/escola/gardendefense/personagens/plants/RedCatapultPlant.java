@@ -1,6 +1,3 @@
-// Copia para src/main/java/pt/escola/gardendefense/personagens/plants/NovaPlanta.java.
-// Se mudares o nome da classe, muda também o nome do ficheiro .java.
-// O catálogo encontra a nova planta quando recompilas e reinicias o jogo.
 package pt.escola.gardendefense.personagens.plants;
 
 import javafx.scene.Node;
@@ -15,18 +12,13 @@ import java.awt.image.BufferedImage;
 
 import static com.almasb.fxgl.dsl.FXGL.texture;
 
-public class redplant extends PeaShooter {
-    // 1. Identidade e posição do cartão (valor menor = mais à esquerda).
-    private static final String NOME = "Red Plant"; // Nome do cartão e da planta no tabuleiro.
+public class RedCatapultPlant extends PeaShooter {
+    private static final String NOME = "Red Plant";
     private static final int ORDEM_NA_BARRA = 30;
 
-    // 2. Arte. Guarda os ficheiros em src/main/resources/assets/textures/.
-    // Usa os nomes exatos, incluindo maiúsculas e minúsculas.
-    private static final String IDLE = "redidle.gif"; // PNG ou GIF no tabuleiro.
     private static final String ATAQUE = "RedCatapult.png";
     private static final String BALA = "RedProjectile.png";
 
-    // 3. Tamanho no tabuleiro e atributos.
     private static final double LARGURA = 88;
     private static final double ALTURA = 88;
     private static final int CUSTO_SOL = 150;
@@ -34,7 +26,6 @@ public class redplant extends PeaShooter {
     private static final int DANO_POR_BALA = 2;
     private static final double VELOCIDADE_BALA = 390;
 
-    // 4. Cadência. Todos os tempos estão em segundos.
     private static final int FOTOGRAMA_LANCAMENTO = 10;
     private static final double DURACAO_PREPARACAO = 0.65;
     private static final double RECARGA = 5.0;
@@ -45,7 +36,7 @@ public class redplant extends PeaShooter {
     private GifPlantView.Frames ataque;
 
     @Override public String getNome() { return NOME; }
-    @Override public String getTextura() { return IDLE; }
+    @Override public String getTextura() { return ATAQUE; }
     @Override public int getOrdemNaBarra() { return ORDEM_NA_BARRA; }
     @Override public double getLargura() { return LARGURA; }
     @Override public double getAltura() { return ALTURA; }

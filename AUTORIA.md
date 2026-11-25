@@ -1,6 +1,6 @@
 # Revisão de autoria — Plants vs. Multiverse
 
-**Data:** 25 de novembro de 2026  
+**Data:** 25 de novembro de 2026
 **Base:** branch `adicao_de_plantas`, commit `8f6a3a9`, mais as alterações locais em `PeaShooterView.java` e `.vscode/settings.json` já presentes antes desta revisão.
 
 Este documento distingue as minhas ideias, as decisões e edições do Codex, as contribuições relatadas de colegas e as contribuições cuja autoria não foi possível verificar. A autoria de um commit identifica quem o registou no Git. Para atribuir a escrita do código, esta revisão procura também um patch de sessão, um registo explícito da edição ou outra evidência que ligue a pessoa ao trecho.
@@ -50,6 +50,8 @@ Este documento distingue as minhas ideias, as decisões e edições do Codex, as
 **25/11/2026 · `AUTORIA.md` e `AGENTS.md`.** Pedi a auditoria e defini as regras de registo para futuras tarefas. O Codex consultou as fontes e os registos, cruzou os diffs com os patches de sessão e redigiu os dois ficheiros. O código permaneceu como estava.
 
 ## Alterações posteriores
+
+**25/11/2026 · Revisão e limpeza da branch.** **Ideia de minha autoria, implementada pelo Codex**. Pedi a revisão de todos os commits da branch e a remoção do que estivesse a mais. O Codex reviu os 11 commits de `main..adicao_de_plantas`, verificou as referências atuais, manteve o contrato `Personagem` e escolheu remover `SpriteSheetView.java`, `GokuPlantIdle.png`, `girassol.webp` e `redidle.gif`, substituídos ou sem uso no código e nos moldes. Renomeou `redplant.java` para `RedCatapultPlant.java`, usou a folha de animação já ativa como textura declarada e limpou os comentários e a formatação de `MikuPlant.java`. Removeu o atalho de teste em `GardenDefenseApp.java` e atualizou o `README.md`. Retirou `debug.log`, os logs de `logs/` e o estado gerado em `system/`, acrescentou as exclusões em `.gitignore` e simplificou `.vscode/settings.json`. O Codex escreveu também este registo em `AUTORIA.md`. Evidência no pedido desta conversa, no histórico e na pesquisa de referências, e no diff desta limpeza. Autoria não verificada para os trechos preexistentes sem registo direto de edição.
 
 **25/11/2026 · Música exclusiva de derrota.** **Ideia de minha autoria, implementada pelo Codex**. Pedi para reservar `Inthepool.wav` para a morte. O Codex retirou-a da lista aleatória, ligou a reprodução ao fim da partida e retomou a lista ao sair desse ecrã ou reiniciar. Escolheu tocar a faixa uma vez por derrota. Alterou `MusicPlaylist.java` e `GardenDefenseApp.java`. Evidência: pedido nesta conversa e patches de descoberta de faixas e transição de estados.
 

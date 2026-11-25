@@ -1,3 +1,8 @@
 # Local compilation, runtime checks and JavaFX preview cache.
 /.design-check/
 /plantsvsmultiverse/target/
+
+# Ficheiros gerados pelo FXGL.
+/debug.log
+/logs/
+/system/
