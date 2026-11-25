@@ -5,11 +5,17 @@ import com.almasb.fxgl.app.GameSettings;
 import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.input.UserAction;
 
+import javafx.animation.KeyFrame;
+import javafx.animation.KeyValue;
+import javafx.animation.Timeline;
+import javafx.geometry.Point2D;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.paint.Color;
 import javafx.scene.Node;
+import javafx.scene.shape.Circle;
 import javafx.scene.shape.Polygon;
+import javafx.util.Duration;
 
 import pt.escola.gardendefense.combate.AlvoPlanta;
 import pt.escola.gardendefense.combate.Projetil;
@@ -734,6 +740,62 @@ public class GardenDefenseApp extends GameApplication {
                 }
             }
             return List.copyOf(alvos);
+        }
+
+        @Override
+        public List<AlvoPlanta> plantasNaArea(int raioLinhas, int raioColunas) {
+            List<AlvoPlanta> alvos = new ArrayList<>();
+            int col = colunaDoZombie();
+            int linhaInicial = Math.max(0, zombie.row - raioLinhas);
+            int linhaFinal = Math.min(ROWS - 1, zombie.row + raioLinhas);
+            int colInicial = Math.max(0, col - raioColunas);
+            int colFinal = Math.min(COLS - 1, col + raioColunas);
+
+            for (int linha = linhaInicial; linha <= linhaFinal; linha++) {
+                for (int c = colInicial; c <= colFinal; c++) {
+                    Plant plant = plantGrid[linha][c];
+                    if (plant != null) {
+                        alvos.add(alvoDe(plant));
+                    }
+                }
+            }
+            return List.copyOf(alvos);
+        }
+
+        /** Coluna lógica do tabuleiro onde o zombie está de pé. */
+        private int colunaDoZombie() {
+            double centro = zombie.entity.getX() + zombie.definicao.getLargura() / 2;
+            int col = (int) Math.floor((centro - GRID_X) / CELL_W);
+            return Math.max(0, Math.min(COLS - 1, col));
+        }
+
+        @Override
+        public void ondaDeChoque(double raioMax, double duracao) {
+            double groundY = BoardProjection.chao(zombie.row);
+            double centroX = zombie.entity.getX() + zombie.definicao.getLargura() / 2;
+            Point2D ecrã = BoardProjection.screen(centroX, groundY);
+            double escala = BoardProjection.scaleAt(groundY);
+
+            Circle anel = new Circle(0);
+            anel.setFill(null);
+            anel.setStroke(Color.web("#ffb347"));
+            anel.setStrokeWidth(8);
+
+            Entity efeito = entityBuilder()
+                    .at(ecrã.getX(), ecrã.getY())
+                    .view(anel)
+                    .zIndex(1000)
+                    .buildAndAttach();
+
+            Timeline onda = new Timeline(
+                    new KeyFrame(Duration.ZERO,
+                            new KeyValue(anel.radiusProperty(), 0),
+                            new KeyValue(anel.opacityProperty(), 1)),
+                    new KeyFrame(Duration.seconds(Math.max(0.05, duracao)),
+                            new KeyValue(anel.radiusProperty(), raioMax * escala),
+                            new KeyValue(anel.opacityProperty(), 0)));
+            onda.setOnFinished(ev -> getGameWorld().removeEntity(efeito));
+            onda.play();
         }
 
         @Override

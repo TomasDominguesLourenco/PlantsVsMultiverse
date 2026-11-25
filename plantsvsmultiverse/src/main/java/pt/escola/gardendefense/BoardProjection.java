@@ -38,9 +38,14 @@ final class BoardProjection {
         }
     }
 
+    /** Altura lógica do chão na linha indicada: o ponto onde os objetos assentam. */
+    static double chao(int row) {
+        return 100 + row * 90 + 73;
+    }
+
     /** Upright sprites stand on the plane, rather than being sheared with the grass. */
     static void place(Entity entity, double width, double height, int row, double lift) {
-        double groundY = 100 + row * 90 + 73;
+        double groundY = chao(row);
         Point2D foot = screen(entity.getX() + width / 2, groundY);
         double scale = scaleAt(groundY);
         var transforms = entity.getViewComponent().getParent().getTransforms();

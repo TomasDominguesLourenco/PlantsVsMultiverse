@@ -46,8 +46,22 @@ public interface ContextoZombie {
     /** Plantas vivas na mesma linha do zombie. */
     List<AlvoPlanta> plantasNaLinha();
 
+    /**
+     * Plantas vivas numa área centrada na célula do próprio zombie:
+     * {@code ±raioLinhas} linhas e {@code ±raioColunas} colunas
+     * (1, 1 ⇒ área 3 × 3). Sai vazio se a área não tem plantas.
+     */
+    List<AlvoPlanta> plantasNaArea(int raioLinhas, int raioColunas);
+
     /** Aplica dano a uma planta devolvida por {@link #plantasNaLinha()}. */
     void danificar(AlvoPlanta alvo, int dano);
+
+    /**
+     * Efeito visual de onda de choque centrado no próprio zombie: um anel que
+     * se expande até {@code raioMax} (px lógicos) e desaparece em
+     * {@code duracao} segundos. Só desenha, não faz dano.
+     */
+    void ondaDeChoque(double raioMax, double duracao);
 
     /** Dispara o projétil do próprio zombie para a esquerda, na linha indicada. */
     void lancar(ProjetilConfig arma, int linha);
