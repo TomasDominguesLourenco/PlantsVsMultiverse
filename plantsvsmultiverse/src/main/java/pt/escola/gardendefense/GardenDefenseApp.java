@@ -104,6 +104,7 @@ public class GardenDefenseApp extends GameApplication {
         final pt.escola.gardendefense.personagens.zombies.SpriteSheetView animation;
         double speed;
         double shootTimer;
+        double inclinacao;
 
         ActiveZombie(Zombie definicao, Entity entity, int row, int hp, double speed, Node view) {
             this.definicao = definicao;
@@ -612,7 +613,8 @@ public class GardenDefenseApp extends GameApplication {
                 e.setX(e.getX() - zombie.speed * tpf);
             }
 
-            BoardProjection.place(e, zombie.definicao.getLargura(), zombie.definicao.getAltura(), zombie.row, 0);
+            BoardProjection.place(e, zombie.definicao.getLargura(), zombie.definicao.getAltura(),
+                    zombie.row, 0, zombie.inclinacao);
             if (e.getX() < GRID_X - 20) {
                 lives--;
                 removeZombie(zombie);
@@ -688,7 +690,7 @@ public class GardenDefenseApp extends GameApplication {
             }
             zombie.row = linha;
             BoardProjection.place(zombie.entity, zombie.definicao.getLargura(),
-                    zombie.definicao.getAltura(), linha, 0);
+                    zombie.definicao.getAltura(), linha, 0, zombie.inclinacao);
             return true;
         }
 
@@ -799,6 +801,27 @@ public class GardenDefenseApp extends GameApplication {
         }
 
         @Override
+        public int bloquearProjeteis(double raioMax) {
+            int bloqueados = 0;
+            double centroX = zombie.entity.getX() + zombie.definicao.getLargura() / 2;
+            double centroY = zombie.entity.getY() + zombie.definicao.getAltura() / 2;
+            double raio2 = raioMax * raioMax;
+
+            for (Projetil projetil : new ArrayList<>(projeteis)) {
+                if (!projetil.paraDireita()) {
+                    continue;
+                }
+                double dx = projetil.entity.getX() + projetil.tamanho / 2 - centroX;
+                double dy = projetil.entity.getY() + projetil.tamanho / 2 - centroY;
+                if (dx * dx + dy * dy <= raio2) {
+                    removerProjetil(projetil);
+                    bloqueados++;
+                }
+            }
+            return bloqueados;
+        }
+
+        @Override
         public void danificar(AlvoPlanta alvo, int dano) {
             if (alvo == null || alvo.linha() < 0 || alvo.linha() >= ROWS
                     || alvo.coluna() < 0 || alvo.coluna() >= COLS) {
@@ -828,6 +851,11 @@ public class GardenDefenseApp extends GameApplication {
         @Override
         public double tempoDecorrido() {
             return elapsed;
+        }
+
+        @Override
+        public void inclinar(double graus) {
+            zombie.inclinacao = graus;
         }
     }
 

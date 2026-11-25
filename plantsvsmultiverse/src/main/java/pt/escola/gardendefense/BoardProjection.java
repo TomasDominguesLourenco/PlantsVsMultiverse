@@ -45,15 +45,26 @@ final class BoardProjection {
 
     /** Upright sprites stand on the plane, rather than being sheared with the grass. */
     static void place(Entity entity, double width, double height, int row, double lift) {
+        place(entity, width, height, row, lift, 0);
+    }
+
+    /**
+     * Como {@link #place}, mas inclinando o sprite {@code rotacao} graus (positivas
+     * fazem o topo inclinar para a direita) em torno do pé do personagem.
+     */
+    static void place(Entity entity, double width, double height, int row, double lift,
+                      double rotacao) {
         double groundY = chao(row);
         Point2D foot = screen(entity.getX() + width / 2, groundY);
         double scale = scaleAt(groundY);
         var transforms = entity.getViewComponent().getParent().getTransforms();
         if (transforms.isEmpty()) transforms.add(new Affine());
         Affine transform = (Affine) transforms.getFirst();
-        // FXGL's entity translation is inside this parent, so it is scaled too.
         transform.setToTransform(scale, 0, foot.getX() - (entity.getX() + width / 2) * scale,
                 0, scale, foot.getY() - (entity.getY() + height + lift) * scale);
+        if (rotacao != 0) {
+            transform.appendRotation(rotacao, entity.getX() + width / 2, entity.getY() + height + lift);
+        }
         entity.setZIndex(row * 10 + (lift > 0 ? 2 : 0));
     }
 }

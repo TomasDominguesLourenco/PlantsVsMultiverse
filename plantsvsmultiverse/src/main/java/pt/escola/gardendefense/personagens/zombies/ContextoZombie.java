@@ -63,9 +63,24 @@ public interface ContextoZombie {
      */
     void ondaDeChoque(double raioMax, double duracao);
 
+    /**
+     * Destrói os projéteis inimigos (os das plantas) dentro do raio
+     * {@code raioMax} centrado no próprio zombie. Devolve quantos foram
+     * bloqueados. Não afeta os projéteis disparados por zombies.
+     */
+    int bloquearProjeteis(double raioMax);
+
     /** Dispara o projétil do próprio zombie para a esquerda, na linha indicada. */
     void lancar(ProjetilConfig arma, int linha);
 
     /** Segundos decorridos desde o início da partida. */
     double tempoDecorrido();
+
+    /**
+     * Inclina o sprite do próprio zombie, em graus: positivas fazem o topo
+     * inclinar para a direita (para trás de um zombie que anda para a esquerda).
+     * Chamar a cada frame — {@code 0} endireita. Só efeito visual: não muda a
+     * linha nem a posição lógica, nem dá invulnerabilidade.
+     */
+    void inclinar(double graus);
 }
