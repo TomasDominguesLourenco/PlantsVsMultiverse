@@ -67,6 +67,7 @@ public class GardenDefenseApp extends GameApplication {
     private Polygon hoverHighlight;
     private boolean portalSelected;
     private Cursor portalCursor;
+    private MusicPlaylist musicPlaylist;
 
     private static class Plant {
         final Planta definicao;
@@ -192,7 +193,11 @@ public class GardenDefenseApp extends GameApplication {
 
     @Override
     protected void initGame() {
-        loopBGM("MainTheme.wav");
+        javafx.application.Platform.runLater(() -> {
+            musicPlaylist = new MusicPlaylist(getPrimaryStage(),
+                    getSettings().globalMusicVolumeProperty(), getSettings().isPauseMusicWhenMinimized());
+            musicPlaylist.playNext();
+        });
         getGameScene().setBackgroundColor(Color.web("#1d2c24"));
 
         hoverHighlight = new Polygon();
@@ -204,7 +209,9 @@ public class GardenDefenseApp extends GameApplication {
             if (state == State.PLAYING) selectPlant(plant);
         }, () -> {
             if (state == State.PLAYING) selectPortal(!portalSelected);
-        }, this::startGame, this::showMenu, this::togglePause,
+        }, this::startGame, this::showMenu, this::togglePause, () -> {
+            if (musicPlaylist != null) musicPlaylist.playNext();
+        },
                 () -> javafx.application.Platform.exit());
         getGameScene().addUINode(ui.root);
         gardenTransition = new GardenTransition(getGameScene().getContentRoot());

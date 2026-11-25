@@ -51,6 +51,10 @@ Este documento distingue as minhas ideias, as decisões e edições do Codex, as
 
 ## Alterações posteriores
 
+**25/11/2026 · Botão para saltar música.** **Ideia de minha autoria, implementada pelo Codex**. Pedi um botão para saltar a faixa atual. O Codex colocou «Próxima faixa» ao lado do volume da música no menu de pausa e ligou-o ao mesmo avanço da lista aleatória em `GardenUI.java` e `GardenDefenseApp.java`. Evidência: pedido nesta conversa e patches no painel e na ligação ao leitor.
+
+**25/11/2026 · Música aleatória durante o jogo.** **Ideia de minha autoria, implementada pelo Codex**. Pedi que as músicas da pasta existente tocassem por ordem aleatória e mudassem com o tempo. O Codex criou `MusicPlaylist.java` e ligou-a em `GardenDefenseApp.java`. Escolheu mudar de faixa no fim da reprodução, baralhar cada ronda sem repetir imediatamente a faixa anterior e ligar o volume ao controlo já existente. A faixa MP3 já estava na pasta antes da alteração. Evidência: pedido nesta conversa, leitura inicial dos recursos e patch da lista de reprodução.
+
 **25/11/2026 · Ordenação da barra por preço.** **Ideia de minha autoria, implementada pelo Codex**. Pedi que as plantas fossem ordenadas pelo preço com a planta de farm sempre no início. O Codex alterou `CatalogoPlantas.java` para dar prioridade a quem produz sol e ordenar cada grupo por custo crescente, usando a ordem anterior como desempate. Atualizou os comentários em `Planta.java` e nos dois moldes em `examples/`. Evidência: pedido nesta conversa e patch da ordenação e dos comentários.
 
 **25/11/2026 · Retirada da Ervilhadora da barra.** **Ideia de minha autoria, implementada pelo Codex**. Pedi para retirar a Ervilhadora normal do jogo. O Codex tornou `PeaShooter.java` abstrata para que o catálogo a ignore e para que a Miku, a Red Plant e o molde possam continuar a usar a classe base. Evidência: pedido nesta conversa, alteração da declaração da classe e filtro de classes abstratas em `CatalogoPlantas.java`.

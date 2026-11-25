@@ -65,7 +65,7 @@ final class GardenUI {
     private int lastSun = -1, lastScore = -1, lastLives = -1, lastSecond = -1;
 
     GardenUI(List<Planta> plantas, Consumer<Planta> selectPlant, Runnable togglePortal,
-             Runnable play, Runnable home, Runnable togglePause, Runnable quit) {
+             Runnable play, Runnable home, Runnable togglePause, Runnable nextTrack, Runnable quit) {
         this.plantaPadrao = plantas.getFirst();
         root.getStylesheets().add(java.util.Objects.requireNonNull(
                 GardenUI.class.getResource("/assets/ui/garden.css")).toExternalForm());
@@ -134,7 +134,7 @@ final class GardenUI {
                 label("OS ZOMBIES PASSARAM!", 338, 221, 29, "#3e4939", true), resultScore,
                 plank("JOGAR OUTRA VEZ", 322, 325, 357, 57, -1, true, play),
                 plank("VOLTAR AO MENU", 342, 402, 318, 46, 1, false, home));
-        buildPause(togglePause, home, quit);
+        buildPause(togglePause, home, nextTrack, quit);
         hud.setVisible(false); result.setVisible(false); help.setVisible(false); pause.setVisible(false);
     }
 
@@ -275,7 +275,7 @@ final class GardenUI {
         hud.getChildren().addAll(hintBacking, hint);
     }
 
-    private void buildPause(Runnable resume, Runnable home, Runnable quit) {
+    private void buildPause(Runnable resume, Runnable home, Runnable nextTrack, Runnable quit) {
         Rectangle veil = new Rectangle(1000, 600, Color.web("#182d24b3"));
         Canvas backing = new Canvas(1000, 600);
         var g = backing.getGraphicsContext2D();
@@ -293,6 +293,7 @@ final class GardenUI {
         title.setMouseTransparent(true); title.setFocusTraversable(false);
         addVolumeRow("Música", musicVolume, 268);
         addVolumeRow("Efeitos", soundVolume, 315);
+        pause.getChildren().add(plank("PRÓXIMA FAIXA", 576, 246, 111, 33, 0, false, nextTrack));
         muted.setLayoutX(321); muted.setLayoutY(334);
         fullScreen.setLayoutX(522); fullScreen.setLayoutY(334);
         fullScreen.setSelected(getPrimaryStage().isFullScreen());
@@ -309,9 +310,10 @@ final class GardenUI {
     }
 
     private void addVolumeRow(String caption, Slider slider, double baseline) {
-        Text percent = label("", 651, baseline, 13, "#52613b", true);
+        boolean music = slider == musicVolume;
+        Text percent = label("", music ? 537 : 651, baseline, 13, "#52613b", true);
         percent.textProperty().bind(slider.valueProperty().asString("%.0f%%"));
-        slider.setLayoutX(412); slider.setLayoutY(baseline - 19); slider.setPrefWidth(223);
+        slider.setLayoutX(412); slider.setLayoutY(baseline - 19); slider.setPrefWidth(music ? 116 : 223);
         slider.setBlockIncrement(5); slider.setAccessibleText("Volume de " + caption.toLowerCase());
         slider.setTooltip(new Tooltip("Volume de " + caption.toLowerCase()));
         slider.valueProperty().addListener(_ -> applyAudio());
