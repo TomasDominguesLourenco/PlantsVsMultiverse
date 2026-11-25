@@ -12,6 +12,7 @@ import java.util.function.DoubleConsumer;
 
 /** Animação articulada: raízes fixas, respiração, preparação, emissão e recuo. */
 public final class PeaShooterView extends Group implements VistaAnimada {
+    private static final double SPRITE_SCALE = 0.72;
     private static final double RELEASE = .18;
     private static final double[] TIMES = {0, .10, .18, .29, .43, .60};
     private static final double[] XS = {1, .92, 1.10, .95, 1.02, 1};
@@ -56,6 +57,8 @@ public final class PeaShooterView extends Group implements VistaAnimada {
         head = new Group(part(Art.HEAD, 78, 53));
         head.getTransforms().addAll(headScale, headLean);
         getChildren().addAll(base, head);
+        // Scale around the ground anchor so the roots stay in place.
+        getTransforms().add(new Scale(SPRITE_SCALE, SPRITE_SCALE, 44, 88));
         pose();
     }
 
@@ -66,7 +69,7 @@ public final class PeaShooterView extends Group implements VistaAnimada {
     }
 
     @Override public double getMomentoDisparo() { return RELEASE; }
-    @Override public Point2D getSaidaProjetil() { return head.localToParent(73, 26); }
+    @Override public Point2D getSaidaProjetil() { return localToParent(head.localToParent(73, 26)); }
     @Override public void atacar() { attacking = true; attackTime = 0; pendingShot = null; pose(); }
     @Override public void atacar(DoubleConsumer emitir) { atacar(); pendingShot = emitir; }
 
