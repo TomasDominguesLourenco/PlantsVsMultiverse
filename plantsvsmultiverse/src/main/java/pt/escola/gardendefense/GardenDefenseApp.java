@@ -79,6 +79,7 @@ public class GardenDefenseApp extends GameApplication {
         int burstShotsRemaining;
         double burstShotTimer;
         double extraShotCooldown;
+        double sunProductionTimer;
 
         Plant(Planta definicao, Entity entity, int row, int col, VistaAnimada animation) {
             this.definicao = definicao;
@@ -152,15 +153,21 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private static class Sun {
+        static final double LIFETIME = 10.0;
         Entity entity;
         final double targetY;
-        double life = 10.0;
+        final int amount;
+        double life = LIFETIME;
+        SunToss toss;
 
-        Sun(Entity entity, double targetY) {
+        Sun(Entity entity, double targetY, int amount) {
             this.entity = entity;
             this.targetY = targetY;
+            this.amount = amount;
         }
     }
+
+    private record SunToss(double x, double y, double targetX) {}
 
     private final Random random = new Random();
 
@@ -305,7 +312,7 @@ public class GardenDefenseApp extends GameApplication {
             double dy = my - cy;
 
             if (dx * dx + dy * dy <= 42 * 42) {
-                sun += SUN_AMOUNT;
+                sun += s.amount;
                 play("sun-pick.wav");
                 removeSun(s);
                 updateInterface();
@@ -521,6 +528,7 @@ public class GardenDefenseApp extends GameApplication {
                 if (plant.animation != null) {
                     plant.animation.advance(tpf);
                 }
+                updateSunProduction(plant, tpf);
                 if (burstInProgress) {
                     updateBurst(plant, tpf);
                     continue;
@@ -777,6 +785,34 @@ public class GardenDefenseApp extends GameApplication {
         hasPlant[plant.row][plant.col] = false;
     }
 
+    private void updateSunProduction(Plant plant, double seconds) {
+        int amount = plant.definicao.getSolProduzido();
+        if (amount <= 0) return;
+        double interval = plant.definicao.getIntervaloProducaoSol();
+        if (interval <= 0 || !Double.isFinite(interval)) return;
+
+        plant.sunProductionTimer += seconds;
+        if (plant.sunProductionTimer < interval) return;
+        plant.sunProductionTimer %= interval;
+
+        Runnable emit = () -> tossProducedSun(plant, amount);
+        if (plant.animation == null) emit.run();
+        else plant.animation.produzirSol(emit);
+    }
+
+    private void tossProducedSun(Plant plant, int amount) {
+        double worldX = GRID_X + plant.col * CELL_W + CELL_W * 0.75;
+        double worldY = GRID_Y + plant.row * CELL_H + CELL_H * 0.8;
+        var landing = BoardProjection.screen(worldX, worldY);
+        double x = landing.getX() - 27;
+        double y = landing.getY() - 27;
+        double startX = x - 12;
+        double startY = y - plant.definicao.getAltura() * BoardProjection.scaleAt(worldY) * 0.8;
+        Sun produced = createSun(startX, startY, y, amount);
+        produced.toss = new SunToss(startX, startY, x);
+        produced.entity.setZIndex(100);
+    }
+
     private void spawnSun() {
         double x = GRID_X + random.nextDouble() * (COLS * CELL_W - 40);
         double y = -10;
@@ -785,23 +821,35 @@ public class GardenDefenseApp extends GameApplication {
         x = landing.getX() - 27;
         double targetY = landing.getY() - 27;
 
+        createSun(x, y, targetY, SUN_AMOUNT);
+    }
+
+    private Sun createSun(double x, double y, double targetY, int amount) {
         Entity sunEntity = entityBuilder()
                 .at(x, y)
                 .viewWithBBox(texture("Sun.png", 54, 54))
                 .buildAndAttach();
 
-        suns.add(new Sun(sunEntity, targetY));
+        Sun created = new Sun(sunEntity, targetY, amount);
+        suns.add(created);
+        return created;
     }
 
     private void updateSuns(double tpf) {
         for (Sun s : new ArrayList<>(suns)) {
             Entity e = s.entity;
 
-            if (e.getY() < s.targetY) {
+            s.life -= tpf;
+            if (s.toss != null) {
+                var toss = s.toss;
+                double progress = Math.min(1, (Sun.LIFETIME - s.life) / 0.46);
+                e.setX(toss.x() + (toss.targetX() - toss.x()) * progress);
+                e.setY(toss.y() + (s.targetY - toss.y()) * progress - 80 * progress * (1 - progress));
+                if (progress >= 1) s.toss = null;
+            } else if (e.getY() < s.targetY) {
                 e.setY(Math.min(s.targetY, e.getY() + 45 * tpf));
             }
 
-            s.life -= tpf;
             if (s.life <= 0) {
                 removeSun(s);
             }

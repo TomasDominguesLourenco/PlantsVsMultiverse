@@ -29,7 +29,7 @@ public class NovaPlanta extends PeaShooter {
     // 3. Tamanho no tabuleiro e atributos.
     private static final double LARGURA = 88;
     private static final double ALTURA = 88;
-    private static final int CUSTO_SOL = 75;
+    private static final int CUSTO_SOL = 150;
     private static final int VIDA = 150;
     private static final int DANO_POR_BALA = 2;
     private static final double VELOCIDADE_BALA = 390;

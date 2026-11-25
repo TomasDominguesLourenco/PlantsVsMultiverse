@@ -31,6 +31,12 @@ public abstract class Planta implements Personagem {
         return true;
     }
 
+    /** Valor de cada sol produzido; zero desativa a produção. */
+    public int getSolProduzido() { return 0; }
+
+    /** Segundos entre sóis produzidos pela planta. */
+    public double getIntervaloProducaoSol() { return 12; }
+
     /** Alcance à frente da planta, em píxeis lógicos; zero desativa o corpo a corpo. */
     public double getAlcanceCorpoACorpo() { return 0; }
 

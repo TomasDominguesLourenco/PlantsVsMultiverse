@@ -73,6 +73,20 @@ public final class GifPlantView extends Group implements VistaAnimada {
 
     @Override
     public void atacar() {
+        iniciarAcao();
+    }
+
+    @Override
+    public void produzirSol() {
+        iniciarAcao();
+    }
+
+    @Override
+    public void produzirSol(Runnable emitir) {
+        atacar(age -> emitir.run());
+    }
+
+    private void iniciarAcao() {
         attacking = true;
         elapsed = 0;
         extraRecovery = 0;
