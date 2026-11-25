@@ -50,7 +50,9 @@ public final class CatalogoPlantas {
                             + " precisa de uma classe pública e um construtor público sem argumentos.", e);
                 }
             }
-            plantas.sort(Comparator.comparingInt(Planta::getOrdemNaBarra)
+            plantas.sort(Comparator.comparing((Planta planta) -> planta.getSolProduzido() <= 0)
+                    .thenComparingInt(Planta::getCustoSol)
+                    .thenComparingInt(Planta::getOrdemNaBarra)
                     .thenComparing(Planta::getNome).thenComparing(planta -> planta.getClass().getName()));
             if (plantas.isEmpty()) throw new IllegalStateException("Não existem moldes de plantas em " + pacote);
             return List.copyOf(plantas);

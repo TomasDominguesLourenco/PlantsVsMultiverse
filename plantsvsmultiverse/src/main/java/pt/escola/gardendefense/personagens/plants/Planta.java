@@ -13,7 +13,7 @@ import static com.almasb.fxgl.dsl.FXGL.texture;
  */
 public abstract class Planta implements Personagem {
 
-    /** Ordem do cartão no catálogo; valores menores aparecem primeiro. */
+    /** Desempate entre cartões do mesmo tipo e custo; valores menores aparecem primeiro. */
     public int getOrdemNaBarra() {
         return 100;
     }

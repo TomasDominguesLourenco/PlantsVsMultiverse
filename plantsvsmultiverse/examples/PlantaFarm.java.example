@@ -8,7 +8,7 @@ import javafx.scene.Node;
 import static com.almasb.fxgl.dsl.FXGL.texture;
 
 public class PlantaFarm extends Planta {
-    // Identidade e posição na barra. Um número menor aparece primeiro.
+    // As plantas de farm aparecem primeiro. Para desempatar preços iguais, o menor número vem primeiro.
     private static final String NOME = "Girassol de Farm";
     private static final int ORDEM_NA_BARRA = 40;
 

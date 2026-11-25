@@ -5,7 +5,7 @@ import javafx.scene.Node;
 /**
  * Planta básica que atira ervilhas numa linha.
  */
-public class PeaShooter extends Planta {
+public abstract class PeaShooter extends Planta {
 
     @Override
     public Node criarVista() {

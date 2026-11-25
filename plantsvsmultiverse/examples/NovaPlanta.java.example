@@ -8,7 +8,7 @@ import javafx.scene.Node;
 import static com.almasb.fxgl.dsl.FXGL.texture;
 
 public class NovaPlanta extends PeaShooter {
-    // 1. Identidade e posição do cartão (valor menor = mais à esquerda).
+    // 1. Identidade e desempate entre plantas com o mesmo preço (menor = primeiro).
     private static final String NOME = "Nova Planta";
     private static final int ORDEM_NA_BARRA = 30;
 

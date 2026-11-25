@@ -15,7 +15,7 @@ import java.awt.image.BufferedImage;
 
 import static com.almasb.fxgl.dsl.FXGL.texture;
 
-public class NovaPlanta extends PeaShooter {
+public class redplant extends PeaShooter {
     // 1. Identidade e posição do cartão (valor menor = mais à esquerda).
     private static final String NOME = "Red Plant"; // Nome do cartão e da planta no tabuleiro.
     private static final int ORDEM_NA_BARRA = 30;

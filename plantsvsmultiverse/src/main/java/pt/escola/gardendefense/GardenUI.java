@@ -11,6 +11,7 @@ import javafx.scene.control.CheckBox;
 import javafx.scene.control.Slider;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.Tooltip;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.effect.ColorAdjust;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.ImageView;
@@ -58,11 +59,12 @@ final class GardenUI {
     private final Planta plantaPadrao;
     private final List<SeedCard> seedCards = new ArrayList<>();
     private final ScrollPane seedTray = new ScrollPane();
+    private final ToggleButton portalButton = new ToggleButton();
     private Planta selectedPlant;
     private ParallelTransition entrance;
     private int lastSun = -1, lastScore = -1, lastLives = -1, lastSecond = -1;
 
-    GardenUI(List<Planta> plantas, Consumer<Planta> selectPlant,
+    GardenUI(List<Planta> plantas, Consumer<Planta> selectPlant, Runnable togglePortal,
              Runnable play, Runnable home, Runnable togglePause, Runnable quit) {
         this.plantaPadrao = plantas.getFirst();
         root.getStylesheets().add(java.util.Objects.requireNonNull(
@@ -70,6 +72,16 @@ final class GardenUI {
         root.getChildren().addAll(hud, menu, result, pause);
         buildHud(togglePause);
         buildSeedTray(plantas, selectPlant);
+        var portalIcon = texture("ui/portal-tool.png", 56, 56);
+        portalButton.setGraphic(portalIcon);
+        portalButton.setLayoutX(638);
+        portalButton.setLayoutY(14);
+        portalButton.setCursor(Cursor.HAND);
+        portalButton.setAccessibleText("Portal para remover plantas");
+        portalButton.setTooltip(new Tooltip("Portal · Remove uma planta"));
+        portalButton.setOnAction(event -> togglePortal.run());
+        showPortalSelected(false);
+        hud.getChildren().add(portalButton);
 
         menu.getChildren().add(new LawnView(true));
         Canvas props = new Canvas(1000, 600);
@@ -161,7 +173,7 @@ final class GardenUI {
             seedCards.add(card); cards.getChildren().add(card.node);
         }
         seedTray.setContent(cards);
-        seedTray.setLayoutX(190); seedTray.setLayoutY(9); seedTray.setPrefSize(506, 89);
+        seedTray.setLayoutX(190); seedTray.setLayoutY(9); seedTray.setPrefSize(444, 89);
         seedTray.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
         seedTray.setVbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
         seedTray.setPannable(true);
@@ -175,6 +187,16 @@ final class GardenUI {
             }
         });
         hud.getChildren().add(seedTray);
+    }
+
+    void showPortalSelected(boolean selected) {
+        portalButton.setSelected(selected);
+        portalButton.setStyle("-fx-padding: 0; -fx-background-radius: 8; -fx-background-color: "
+                + (selected ? "#53788e" : "transparent") + ";");
+        if (selected) {
+            selectedPlant = null;
+            for (SeedCard card : seedCards) card.update(lastSun);
+        }
     }
 
     private final class SeedCard {

@@ -6,6 +6,7 @@ import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.input.UserAction;
 
 import javafx.scene.input.KeyCode;
+import javafx.scene.Cursor;
 import javafx.scene.input.MouseButton;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Polygon;
@@ -64,6 +65,8 @@ public class GardenDefenseApp extends GameApplication {
     private GardenUI ui;
     private GardenTransition gardenTransition;
     private Polygon hoverHighlight;
+    private boolean portalSelected;
+    private Cursor portalCursor;
 
     private static class Plant {
         final Planta definicao;
@@ -80,6 +83,8 @@ public class GardenDefenseApp extends GameApplication {
         double burstShotTimer;
         double extraShotCooldown;
         double sunProductionTimer;
+        PlantPortal portal;
+        Entity portalEntity;
 
         Plant(Planta definicao, Entity entity, int row, int col, VistaAnimada animation) {
             this.definicao = definicao;
@@ -197,6 +202,8 @@ public class GardenDefenseApp extends GameApplication {
         getGameScene().addUINode(hoverHighlight);
         ui = new GardenUI(plantas, plant -> {
             if (state == State.PLAYING) selectPlant(plant);
+        }, () -> {
+            if (state == State.PLAYING) selectPortal(!portalSelected);
         }, this::startGame, this::showMenu, this::togglePause,
                 () -> javafx.application.Platform.exit());
         getGameScene().addUINode(ui.root);
@@ -234,7 +241,8 @@ public class GardenDefenseApp extends GameApplication {
         getInput().addAction(new UserAction("Pausar ou continuar") {
             @Override
             protected void onActionBegin() {
-                togglePause();
+                if (portalSelected) selectPortal(false);
+                else togglePause();
             }
         }, KeyCode.ESCAPE);
 
@@ -282,7 +290,15 @@ public class GardenDefenseApp extends GameApplication {
     private void selectPlant(Planta plant) {
         if (!plantas.contains(plant)) return;
         plantaSelecionada = plant;
-        ui.showSelectedPlant(plant);
+        selectPortal(false);
+    }
+
+    private void selectPortal(boolean active) {
+        portalSelected = active;
+        if (active && portalCursor == null) portalCursor = PlantPortal.createCursor();
+        getPrimaryStage().getScene().setCursor(active ? portalCursor : Cursor.DEFAULT);
+        ui.showPortalSelected(active);
+        if (!active) ui.showSelectedPlant(plantaSelecionada);
     }
 
     private void handleClick() {
@@ -296,11 +312,51 @@ public class GardenDefenseApp extends GameApplication {
         // Seed-tray clicks select a template; they must not collect a sun behind the HUD.
         if (my < 100) return;
 
+        if (portalSelected) {
+            Plant target = portalTarget(mx, my);
+            if (target != null) openPortal(target);
+            return;
+        }
+
         if (tryCollectSun(mx, my)) {
             return;
         }
 
         tryPlant(mx, my);
+    }
+
+    private Plant portalTarget(double mx, double my) {
+        for (int row = ROWS - 1; row >= 0; row--) {
+            double groundY = GRID_Y + row * CELL_H + 73;
+            double scale = BoardProjection.scaleAt(groundY);
+            for (Plant plant : plantGrid[row]) {
+                if (plant == null || plant.portal != null) continue;
+                double width = plant.definicao.getLargura();
+                var foot = BoardProjection.screen(plant.entity.getX() + width / 2, groundY);
+                if (Math.abs(mx - foot.getX()) <= width * scale / 2
+                        && my >= foot.getY() - plant.definicao.getAltura() * scale
+                        && my <= foot.getY()) return plant;
+            }
+        }
+        var ground = BoardProjection.world(mx, my);
+        int row = (int) Math.floor((ground.getY() - GRID_Y) / CELL_H);
+        int col = (int) Math.floor((ground.getX() - GRID_X) / CELL_W);
+        if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return null;
+        Plant plant = plantGrid[row][col];
+        return plant != null && plant.portal == null ? plant : null;
+    }
+
+    private void openPortal(Plant plant) {
+        double width = plant.definicao.getLargura();
+        double height = plant.definicao.getAltura();
+        var ring = new PlantPortal.Ring(width, height);
+        plant.portalEntity = entityBuilder().at(plant.entity.getX(), plant.entity.getY())
+                .view(ring).buildAndAttach();
+        BoardProjection.place(plant.portalEntity, width, height, plant.row, 0);
+        plant.portalEntity.setZIndex(plant.row * 10 + 1);
+        var art = plant.entity.getViewComponent().getChildren().getLast();
+        plant.portal = new PlantPortal(ring, art, width, height);
+        selectPortal(false);
     }
 
     private boolean tryCollectSun(double mx, double my) {
@@ -362,6 +418,7 @@ public class GardenDefenseApp extends GameApplication {
 
     private void pauseGame() {
         if (state != State.PLAYING) return;
+        if (portalSelected) selectPortal(false);
         state = State.PAUSED;
         hoverHighlight.setVisible(false);
         ui.showPause();
@@ -418,6 +475,7 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private void clearWorld() {
+        if (portalSelected) selectPortal(false);
         for (Entity e : new ArrayList<>(getGameWorld().getEntities())) {
             getGameWorld().removeEntity(e);
         }
@@ -503,6 +561,16 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private void updateHover() {
+        if (portalSelected) {
+            Plant target = portalTarget(getInput().getMouseXUI(), getInput().getMouseYUI());
+            hoverHighlight.setVisible(target != null);
+            if (target != null) {
+                BoardProjection.cell(hoverHighlight, target.row, target.col);
+                hoverHighlight.setStroke(Color.web("#53d9ff"));
+                hoverHighlight.setFill(Color.web("#53d9ff30"));
+            }
+            return;
+        }
         var ground = BoardProjection.world(getInput().getMouseXUI(), getInput().getMouseYUI());
         int col = (int) Math.floor((ground.getX() - GRID_X) / CELL_W);
         int row = (int) Math.floor((ground.getY() - GRID_Y) / CELL_H);
@@ -522,6 +590,13 @@ public class GardenDefenseApp extends GameApplication {
             for (int col = 0; col < COLS; col++) {
                 Plant plant = plantGrid[row][col];
                 if (plant == null) {
+                    continue;
+                }
+                if (plant.portal != null) {
+                    if (plant.portal.advance(tpf)) {
+                        getGameWorld().removeEntity(plant.portalEntity);
+                        removePlant(plant);
+                    }
                     continue;
                 }
                 boolean burstInProgress = plant.burstShotsRemaining > 0;
@@ -765,7 +840,7 @@ public class GardenDefenseApp extends GameApplication {
 
         for (int col = 0; col < COLS; col++) {
             Plant plant = plantGrid[zombie.row][col];
-            if (plant == null) {
+            if (plant == null || plant.portal != null) {
                 continue;
             }
 
@@ -918,6 +993,7 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private void endGame() {
+        if (portalSelected) selectPortal(false);
         state = State.GAME_OVER;
         hoverHighlight.setVisible(false);
 
