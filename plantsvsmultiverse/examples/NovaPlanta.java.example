@@ -1,23 +1,83 @@
-// MOLDE: copia este ficheiro para src/main/java/pt/escola/gardendefense/
-// personagens/plants/NovaPlanta.java (retira a extensão .example).
-// Compila e reinicia o jogo: o novo cartão aparece automaticamente.
-// Não é preciso editar GardenDefenseApp nem GardenUI.
+// Copia para src/main/java/pt/escola/gardendefense/personagens/plants/NovaPlanta.java.
+// Se mudares o nome da classe, muda também o nome do ficheiro .java.
+// O catálogo encontra a nova planta quando recompilas e reinicias o jogo.
 package pt.escola.gardendefense.personagens.plants;
 
-// Herdar de PeaShooter permite começar com os valores de uma planta funcional.
-// Para um comportamento totalmente próprio, herda de Planta e implementa os seus métodos.
-public class NovaPlanta extends PeaShooter {
-    @Override public String getNome() { return "Nova Planta"; }
-    @Override public String getTextura() { return "PeaShooter.png"; } // Imagem em assets/textures.
-    @Override public int getCustoSol() { return 75; }
-    @Override public int getVidaMax() { return 150; }
-    @Override public int getDano() { return 2; }
-    @Override public double getIntervaloTiro() { return 1.5; }
-    @Override public double getVelocidadeProjetil() { return 300; }
-    @Override public int getOrdemNaBarra() { return 20; } // Menor = mais à esquerda.
+import javafx.scene.Node;
 
-    // Opcional: sobrescreve criarVista() para animar a planta.
-    // criarIcone() reutiliza a vista inicial; podes sobrescrevê-lo para um ícone próprio.
-    // Cada chamada deve devolver um Node novo, nunca um Node partilhado.
-    // Mantém a classe pública com construtor público sem argumentos (o implícito serve).
+import static com.almasb.fxgl.dsl.FXGL.texture;
+
+public class NovaPlanta extends PeaShooter {
+    // 1. Identidade e posição do cartão (valor menor = mais à esquerda).
+    private static final String NOME = "Nova Planta";
+    private static final int ORDEM_NA_BARRA = 30;
+
+    // 2. Arte. Guarda os ficheiros em src/main/resources/assets/textures/.
+    // Usa os nomes exatos, incluindo maiúsculas e minúsculas.
+    private static final String ICONE = "PeaShooter.png"; // PNG fixo no cartão.
+    private static final String IDLE = "PeaShooter.png"; // PNG ou GIF no tabuleiro.
+    private static final String ATAQUE = ""; // Opcional: GIF, por exemplo "MinhaPlantaAtaque.gif".
+    private static final String BALA = "ProjectilePea.png"; // PNG ou GIF do projétil.
+    private static final double ESCALA_BALA = 1.5; // 1.0 = tamanho normal.
+
+    // 3. Tamanho no tabuleiro e atributos.
+    private static final double LARGURA = 88;
+    private static final double ALTURA = 88;
+    private static final int CUSTO_SOL = 75;
+    private static final int VIDA = 150;
+    private static final int DANO_POR_BALA = 1;
+    private static final double VELOCIDADE_BALA = 300; // Píxeis lógicos por segundo.
+
+    // 4. Cadência. Todos os tempos estão em segundos.
+    private static final int TIROS_POR_RAJADA = 3; // Usa 1 para disparos individuais.
+    private static final double INTERVALO_ENTRE_TIROS = 0.12;
+    private static final double PAUSA_ENTRE_RAJADAS = 2.4; // Começa após o último tiro.
+    private static final double ATRASO_PRIMEIRO_TIRO = 0.0; // A contar do início do ataque.
+
+    private GifPlantView.Frames idle;
+    private GifPlantView.Frames ataque;
+
+    @Override public String getNome() { return NOME; }
+    @Override public String getTextura() { return IDLE; }
+    @Override public int getOrdemNaBarra() { return ORDEM_NA_BARRA; }
+    @Override public double getLargura() { return LARGURA; }
+    @Override public double getAltura() { return ALTURA; }
+    @Override public int getCustoSol() { return CUSTO_SOL; }
+    @Override public int getVidaMax() { return VIDA; }
+    @Override public int getDano() { return DANO_POR_BALA; }
+    @Override public double getVelocidadeProjetil() { return VELOCIDADE_BALA; }
+    @Override public int getTirosPorRajada() { return TIROS_POR_RAJADA; }
+    @Override public double getIntervaloEntreTiros() { return INTERVALO_ENTRE_TIROS; }
+    @Override public double getIntervaloTiro() { return PAUSA_ENTRE_RAJADAS; }
+    @Override public double getAtrasoDisparo() { return ATRASO_PRIMEIRO_TIRO; }
+
+    @Override
+    public Node criarIcone() {
+        return texture(ICONE, LARGURA, ALTURA);
+    }
+
+    @Override
+    public Node criarVista() {
+        if (ATAQUE.isBlank()) {
+            return texture(IDLE, LARGURA, ALTURA);
+        }
+        if (idle == null) {
+            idle = IDLE.toLowerCase(java.util.Locale.ROOT).endsWith(".gif")
+                    ? GifPlantView.carregar(IDLE)
+                    : new GifPlantView.Frames(new javafx.scene.image.Image[]{texture(IDLE).getImage()},
+                            new double[]{1.0});
+        }
+        if (ataque == null) {
+            ataque = GifPlantView.carregar(ATAQUE);
+        }
+        return new GifPlantView(idle, ataque, LARGURA, ALTURA);
+    }
+
+    @Override
+    public Node criarVistaProjetil(double tamanho) {
+        var bala = texture(BALA, tamanho, tamanho);
+        bala.setScaleX(ESCALA_BALA);
+        bala.setScaleY(ESCALA_BALA);
+        return bala;
+    }
 }

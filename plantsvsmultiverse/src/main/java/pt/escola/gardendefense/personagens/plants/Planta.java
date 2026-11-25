@@ -40,6 +40,12 @@ public abstract class Planta implements Personagem {
     /** Tempo de preparação da animação antes de lançar um projétil. */
     public double getAtrasoDisparo() { return 0; }
 
+    /** Número de projéteis por ataque. */
+    public int getTirosPorRajada() { return 1; }
+
+    /** Segundos entre os projéteis de uma rajada. */
+    public double getIntervaloEntreTiros() { return 0.15; }
+
     /** Posição horizontal da saída do projétil, relativa à planta. */
     public double getSaidaProjetilX() { return getLargura(); }
 

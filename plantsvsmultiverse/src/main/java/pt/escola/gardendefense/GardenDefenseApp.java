@@ -76,6 +76,8 @@ public class GardenDefenseApp extends GameApplication {
         double impactTimer;
         double shotWindup = -1;
         boolean preparingShot;
+        int burstShotsRemaining;
+        double burstShotTimer;
 
         Plant(Planta definicao, Entity entity, int row, int col, VistaAnimada animation) {
             this.definicao = definicao;
@@ -492,8 +494,16 @@ public class GardenDefenseApp extends GameApplication {
                 if (plant == null) {
                     continue;
                 }
+                boolean burstInProgress = plant.burstShotsRemaining > 0;
                 if (plant.animation != null) {
                     plant.animation.advance(tpf);
+                }
+                if (burstInProgress) {
+                    updateBurst(plant, tpf);
+                    continue;
+                }
+                if (plant.burstShotsRemaining > 0) {
+                    continue;
                 }
                 if (plant.definicao.getAlcanceCorpoACorpo() > 0) {
                     updateMelee(plant, tpf);
@@ -507,25 +517,47 @@ public class GardenDefenseApp extends GameApplication {
                 if (plant.shotWindup >= 0) {
                     plant.shotWindup -= tpf;
                     if (plant.shotWindup <= 0) {
-                        shoot(plant, Math.max(0, -plant.shotWindup));
+                        startBurst(plant, Math.max(0, -plant.shotWindup));
                         plant.shotWindup = -1;
                     }
                 }
-                if (!plant.preparingShot && plant.shotWindup < 0 && shootTimers[row][col] >= plant.definicao.getIntervaloTiro() && hasZombieInRow(row)) {
+                if (!plant.preparingShot && plant.shotWindup < 0 && plant.burstShotsRemaining == 0
+                        && shootTimers[row][col] >= plant.definicao.getIntervaloTiro() && hasZombieInRow(row)) {
                     shootTimers[row][col] = 0;
                     if (plant.animation != null && plant.animation.getMomentoDisparo() >= 0) {
                         plant.preparingShot = true;
                         plant.animation.atacar(age -> {
                             plant.preparingShot = false;
-                            shoot(plant, age);
+                            startBurst(plant, age);
                         });
                     } else {
                         if (plant.animation != null) plant.animation.atacar();
                         if (plant.definicao.getAtrasoDisparo() > 0) plant.shotWindup = plant.definicao.getAtrasoDisparo();
-                        else shoot(plant, 0);
+                        else startBurst(plant, 0);
                     }
                 }
             }
+        }
+    }
+
+    private void startBurst(Plant plant, double birthAge) {
+        shoot(plant, birthAge);
+        plant.burstShotsRemaining = Math.max(0, plant.definicao.getTirosPorRajada() - 1);
+        if (plant.burstShotsRemaining > 0) {
+            plant.burstShotTimer = Math.max(0, plant.definicao.getIntervaloEntreTiros());
+            updateBurst(plant, birthAge);
+        }
+    }
+
+    private void updateBurst(Plant plant, double seconds) {
+        plant.burstShotTimer -= seconds;
+        while (plant.burstShotsRemaining > 0 && plant.burstShotTimer <= 0) {
+            shoot(plant, -plant.burstShotTimer);
+            plant.burstShotsRemaining--;
+            plant.burstShotTimer += Math.max(0, plant.definicao.getIntervaloEntreTiros());
+        }
+        if (plant.burstShotsRemaining == 0) {
+            shootTimers[plant.row][plant.col] = 0;
         }
     }
 
