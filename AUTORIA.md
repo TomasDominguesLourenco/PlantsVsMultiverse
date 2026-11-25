@@ -51,6 +51,8 @@ Este documento distingue as minhas ideias, as decisões e edições do Codex, as
 
 ## Alterações posteriores
 
+**25/11/2026 · Música exclusiva de derrota.** **Ideia de minha autoria, implementada pelo Codex**. Pedi para reservar `Inthepool.wav` para a morte. O Codex retirou-a da lista aleatória, ligou a reprodução ao fim da partida e retomou a lista ao sair desse ecrã ou reiniciar. Escolheu tocar a faixa uma vez por derrota. Alterou `MusicPlaylist.java` e `GardenDefenseApp.java`. Evidência: pedido nesta conversa e patches de descoberta de faixas e transição de estados.
+
 **25/11/2026 · Botão para saltar música.** **Ideia de minha autoria, implementada pelo Codex**. Pedi um botão para saltar a faixa atual. O Codex colocou «Próxima faixa» ao lado do volume da música no menu de pausa e ligou-o ao mesmo avanço da lista aleatória em `GardenUI.java` e `GardenDefenseApp.java`. Evidência: pedido nesta conversa e patches no painel e na ligação ao leitor.
 
 **25/11/2026 · Música aleatória durante o jogo.** **Ideia de minha autoria, implementada pelo Codex**. Pedi que as músicas da pasta existente tocassem por ordem aleatória e mudassem com o tempo. O Codex criou `MusicPlaylist.java` e ligou-a em `GardenDefenseApp.java`. Escolheu mudar de faixa no fim da reprodução, baralhar cada ronda sem repetir imediatamente a faixa anterior e ligar o volume ao controlo já existente. A faixa MP3 já estava na pasta antes da alteração. Evidência: pedido nesta conversa, leitura inicial dos recursos e patch da lista de reprodução.

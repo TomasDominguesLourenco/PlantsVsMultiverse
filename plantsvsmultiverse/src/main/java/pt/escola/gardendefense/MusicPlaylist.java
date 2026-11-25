@@ -25,6 +25,7 @@ import java.util.logging.Logger;
 /** Plays a shuffled round of the bundled tracks without repeating the previous round's last track. */
 final class MusicPlaylist {
     private static final String DIRECTORY = "assets/music/";
+    private static final String DEFEAT_TRACK = DIRECTORY + "Inthepool.wav";
     private static final Logger LOG = Logger.getLogger(MusicPlaylist.class.getName());
     private final List<String> tracks;
     private final ArrayDeque<String> queue = new ArrayDeque<>();
@@ -33,6 +34,7 @@ final class MusicPlaylist {
     private final boolean pauseWhenMinimized;
     private String previous;
     private MediaPlayer player;
+    private boolean defeat;
 
     MusicPlaylist(Stage stage, ObservableDoubleValue volume, boolean pauseWhenMinimized) {
         this.stage = stage;
@@ -50,37 +52,53 @@ final class MusicPlaylist {
     }
 
     void playNext() {
+        if (defeat) return;
         disposePlayer();
         while (!tracks.isEmpty()) {
             String track = nextTrack();
-            URL resource = MusicPlaylist.class.getResource("/" + track);
-            if (resource == null) {
-                skip(track, new IOException("Recurso não encontrado"));
-                continue;
-            }
-            try {
-                var media = new Media(resource.toExternalForm());
-                var next = new MediaPlayer(media);
-                player = next;
-                next.volumeProperty().bind(volume);
-                next.setOnEndOfMedia(() -> {
-                    if (player == next) playNext();
-                });
-                next.setOnError(() -> onError(track, next, next.getError()));
-                media.setOnError(() -> onError(track, next, media.getError()));
-                var error = next.getError() != null ? next.getError() : media.getError();
-                if (error != null) {
-                    skip(track, error);
-                    disposePlayer();
-                    continue;
-                }
+            if (startTrack(track, this::playNext)) {
                 previous = track;
-                if (!pauseWhenMinimized || !stage.isIconified()) next.play();
                 return;
-            } catch (MediaException | IllegalArgumentException error) {
-                skip(track, error);
-                disposePlayer();
             }
+        }
+    }
+
+    void playDefeat() {
+        defeat = true;
+        disposePlayer();
+        startTrack(DEFEAT_TRACK, this::disposePlayer);
+    }
+
+    void resumePlaylist() {
+        if (!defeat) return;
+        defeat = false;
+        playNext();
+    }
+
+    private boolean startTrack(String track, Runnable onEnd) {
+        URL resource = MusicPlaylist.class.getResource("/" + track);
+        if (resource == null) {
+            skip(track, new IOException("Recurso não encontrado"));
+            return false;
+        }
+        try {
+            var media = new Media(resource.toExternalForm());
+            var next = new MediaPlayer(media);
+            player = next;
+            next.volumeProperty().bind(volume);
+            next.setOnEndOfMedia(() -> {
+                if (player == next) onEnd.run();
+            });
+            next.setOnError(() -> onError(track, next, next.getError()));
+            media.setOnError(() -> onError(track, next, media.getError()));
+            var error = next.getError() != null ? next.getError() : media.getError();
+            if (error != null) throw error;
+            if (!pauseWhenMinimized || !stage.isIconified()) next.play();
+            return true;
+        } catch (MediaException | IllegalArgumentException error) {
+            skip(track, error);
+            disposePlayer();
+            return false;
         }
     }
 
@@ -99,7 +117,8 @@ final class MusicPlaylist {
     private void onError(String track, MediaPlayer failedPlayer, Throwable error) {
         if (player != failedPlayer) return;
         skip(track, error);
-        playNext();
+        if (defeat) disposePlayer();
+        else playNext();
     }
 
     private void skip(String track, Throwable error) {
@@ -140,6 +159,7 @@ final class MusicPlaylist {
     }
 
     private static boolean isTrack(String name) {
+        if (DEFEAT_TRACK.equalsIgnoreCase(name)) return false;
         String lower = name.toLowerCase(Locale.ROOT);
         return lower.endsWith(".wav") || lower.endsWith(".mp3");
     }

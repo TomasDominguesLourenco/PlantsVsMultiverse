@@ -408,6 +408,7 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private void showMenu() {
+        if (musicPlaylist != null) musicPlaylist.resumePlaylist();
         if (gardenTransition != null) gardenTransition.cancel();
         ui.root.setDisable(false);
         state = State.MENU;
@@ -439,6 +440,7 @@ public class GardenDefenseApp extends GameApplication {
 
     private void startGame() {
         if (ui == null || (state != State.MENU && state != State.GAME_OVER)) return;
+        if (musicPlaylist != null) musicPlaylist.resumePlaylist();
         state = State.ENTERING_GARDEN;
         hoverHighlight.setVisible(false);
         ui.root.setDisable(true);
@@ -1000,6 +1002,7 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private void endGame() {
+        if (musicPlaylist != null) musicPlaylist.playDefeat();
         if (portalSelected) selectPortal(false);
         state = State.GAME_OVER;
         hoverHighlight.setVisible(false);
