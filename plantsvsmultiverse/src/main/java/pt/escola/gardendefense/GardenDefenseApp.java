@@ -291,6 +291,7 @@ public class GardenDefenseApp extends GameApplication {
     }
 
     private void selectPortal(boolean active) {
+        if (active && !portalSelected) play("portal-ready.wav");
         portalSelected = active;
         if (active && portalCursor == null) portalCursor = PlantPortal.createCursor();
         getPrimaryStage().getScene().setCursor(active ? portalCursor : Cursor.DEFAULT);
@@ -353,6 +354,7 @@ public class GardenDefenseApp extends GameApplication {
         plant.portalEntity.setZIndex(plant.row * 10 + 1);
         var art = plant.entity.getViewComponent().getChildren().getLast();
         plant.portal = new PlantPortal(ring, art, width, height);
+        play("portal-open.wav");
         selectPortal(false);
     }
 
@@ -686,6 +688,7 @@ public class GardenDefenseApp extends GameApplication {
                 plant.attackTarget = target;
                 plant.impactTimer = plant.definicao.getAtrasoImpacto();
                 if (plant.animation != null) plant.animation.atacar();
+                playAttackSound(plant);
                 if (plant.impactTimer <= 0) finishMelee(plant);
             }
         }
@@ -759,6 +762,12 @@ public class GardenDefenseApp extends GameApplication {
         }
         bullets.add(shot);
         BoardProjection.place(bullet, PROJECTILE_SIZE, PROJECTILE_SIZE, plant.row, lift);
+        playAttackSound(plant);
+    }
+
+    private void playAttackSound(Plant plant) {
+        String sound = plant.definicao.getSomAtaque();
+        if (sound != null) play(sound);
     }
 
     private void updateBullets(double tpf) {

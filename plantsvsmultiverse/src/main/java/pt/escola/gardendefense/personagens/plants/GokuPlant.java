@@ -5,6 +5,8 @@ import javafx.scene.image.ImageView;
 import javafx.geometry.Point2D;
 
 public final class GokuPlant extends Planta {
+
+    @Override public String getSomAtaque() { return "goku-ki.wav"; }
     private GifPlantView.Frames idle;
     private GifPlantView.Frames attack;
 

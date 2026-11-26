@@ -13,6 +13,8 @@ import java.awt.image.BufferedImage;
 import static com.almasb.fxgl.dsl.FXGL.texture;
 
 public class RedCatapultPlant extends PeaShooter {
+
+    @Override public String getSomAtaque() { return "red-launch.wav"; }
     private static final String NOME = "Red Plant";
     private static final int ORDEM_NA_BARRA = 30;
 

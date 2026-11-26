@@ -1,5 +1,7 @@
 # Revisão de autoria — Plants vs. Multiverse
 
+**26/11/2026 · Efeitos sonoros de ataque e do portal.** **Ideia de minha autoria, implementada pelo Codex**. Pedi sons próprios para os tiros dos personagens e para o portal de remoção de plantas. O Codex sintetizou os ficheiros `pea-shot.wav`, `miku-shot.wav`, `goku-ki.wav`, `red-launch.wav`, `steve-swing.wav`, `portal-ready.wav` e `portal-open.wav` em `plantsvsmultiverse/src/main/resources/assets/sounds/`. Em `Planta.java`, `PeaShooter.java`, `MikuPlant.java`, `GokuPlant.java`, `RedCatapultPlant.java` e `StevePlant.java`, o Codex escreveu a configuração do som de ataque por personagem. Em `GardenDefenseApp.java`, ligou os efeitos ao lançamento de cada projétil, ao início do golpe do Steve, à seleção do portal e à abertura sobre a planta, usando o volume de efeitos do jogo. Evidência: pedido nesta conversa, comando de síntese dos WAV e patch das ligações.
+
 **Data:** 25 de novembro de 2026
 **Base:** branch `adicao_de_plantas`, commit `8f6a3a9`, mais as alterações locais em `PeaShooterView.java` e `.vscode/settings.json` já presentes antes desta revisão.
 

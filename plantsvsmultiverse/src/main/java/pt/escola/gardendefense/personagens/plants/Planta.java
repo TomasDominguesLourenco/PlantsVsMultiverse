@@ -67,6 +67,8 @@ public abstract class Planta implements Personagem {
 
     public int getDanoProjetil(int vidaMaxAlvo) { return getDano(); }
 
+    public String getSomAtaque() { return null; }
+
     /** Custo em energia para plantar. */
     public abstract int getCustoSol();
 

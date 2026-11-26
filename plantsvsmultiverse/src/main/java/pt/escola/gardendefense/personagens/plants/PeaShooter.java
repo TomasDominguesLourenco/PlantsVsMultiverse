@@ -7,6 +7,8 @@ import javafx.scene.Node;
  */
 public abstract class PeaShooter extends Planta {
 
+    @Override public String getSomAtaque() { return "pea-shot.wav"; }
+
     @Override
     public Node criarVista() {
         // Custom templates inheriting PeaShooter can still supply their own texture.

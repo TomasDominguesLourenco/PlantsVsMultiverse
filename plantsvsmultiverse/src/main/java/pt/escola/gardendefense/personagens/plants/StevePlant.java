@@ -5,6 +5,8 @@ import javafx.scene.image.ImageView;
 
 /** Tanque de curta distância: prepara a picareta e acerta um golpe forte. */
 public final class StevePlant extends Planta {
+
+    @Override public String getSomAtaque() { return "steve-swing.wav"; }
     private GifPlantView.Frames idle;
     private GifPlantView.Frames attack;
 

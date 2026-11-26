@@ -5,6 +5,8 @@ import javafx.scene.Node;
 import static com.almasb.fxgl.dsl.FXGL.texture;
 
 public class MikuPlant extends PeaShooter {
+
+    @Override public String getSomAtaque() { return "miku-shot.wav"; }
     private GifPlantView.Frames idle;
     private GifPlantView.Frames shooting;
 
